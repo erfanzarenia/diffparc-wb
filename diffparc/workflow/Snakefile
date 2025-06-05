@@ -6,6 +6,11 @@ from snakebids import bids
 
 configfile: "config/snakebids.yml"
 
+if config["no_surf"]: 
+    config["surface_metrics"] = None
+
+if config["no_vol"]:
+    config["volume_metrics"] = None
 
 if config["anat_only"]:
 
@@ -450,7 +455,7 @@ def get_subj_dti_vbm():
 
 def get_subj_qc():
     qc_snaps = []
-    if len(config["volume_metrics"]) == 0 or len(config["surface_metrics"]) == 0:
+    if config["volume_metrics"] == None or config["surface_metrics"] == None:
         return []
     for seed in config["select_seeds"]:
         qc_snaps.extend(
