@@ -6,7 +6,8 @@ from snakebids import bids
 
 configfile: "config/snakebids.yml"
 
-if config["no_surf"]: 
+
+if config["no_surf"]:
     config["surface_metrics"] = None
 
 if config["no_vol"]:
