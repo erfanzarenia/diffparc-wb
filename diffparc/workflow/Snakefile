@@ -484,6 +484,46 @@ def get_subj_qc():
     return qc_snaps
 
 
+def get_subj_nlincrop_conn():
+    files = []
+    if config["no_vol"]:
+        return []
+    for seed in config["select_seeds"]:
+        files.extend(
+            expand(
+                expand(
+                    bids(
+                        root=root,
+                        datatype="tracts",
+                        hemi="{hemi}",
+                        warp="nlincrop",
+                        space=config["template"],
+                        desc="{targets}",
+                        label="{seed}",
+                        seedspervoxel="{seedspervoxel}",
+                        method="{method}",
+                        suffix="conn.nii.gz",
+                        **subj_wildcards,
+                    ),
+                    seed=seed,
+                    targets=config["seeds"][seed]["targets"],
+                    seedspervoxel=config["seeds"][seed]["seeds_per_voxel"],
+                    method=config["methods"],
+                    hemi=config["hemispheres"],
+                    allow_missing=True,
+                ),
+                zip,
+                **subj_zip_list,
+            )
+        )
+    return files
+
+
+rule all_nlincrop_conn:
+    input:
+        get_subj_nlincrop_conn(),
+
+
 rule all:
     input:
         get_subj_spec(),
