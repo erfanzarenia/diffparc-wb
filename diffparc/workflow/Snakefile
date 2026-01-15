@@ -4,6 +4,7 @@ import snakebids
 from snakebids import bids
 
 
+
 configfile: "config/snakebids.yml"
 
 
@@ -518,10 +519,41 @@ def get_subj_nlincrop_conn():
         )
     return files
 
+def get_subj_global_conn_sift2():
+    files = []
+    if config["no_vol"]:
+        return []
+    for seed in config["select_seeds"]:
+        files.extend(
+            expand(
+                expand(
+                    bids(
+                        root=root,
+                        datatype="tracts",
+                        hemi="{hemi}",
+                        desc="{targets}",
+                        label="{seed}",
+                        seedspervoxel="{seedspervoxel}",
+                        method="mrtrix",
+                        suffix="conn_global_sift2.csv",
+                        **subj_wildcards,
+                    ),
+                    seed=seed,
+                    targets=config["seeds"][seed]["targets"],
+                    seedspervoxel=config["seeds"][seed]["seeds_per_voxel"],
+                    hemi=config["hemispheres"],
+                    allow_missing=True,
+                ),
+                zip,
+                **subj_zip_list,
+            )
+        )
+    return files
 
 rule all_nlincrop_conn:
     input:
         get_subj_nlincrop_conn(),
+        get_subj_global_conn_sift2() if config.get("enable_global_conn", False) else [],
 
 
 rule all:
@@ -563,6 +595,7 @@ if not config["anat_only"]:
     include: "rules/mrtrix.smk"
     include: "rules/bedpost.smk"
     include: "rules/mrtrix_vol.smk"
+    include: "rules/mrtrix_vol_global.smk"
     include: "rules/mrtrix_surf.smk"
     include: "rules/probtrack_surf.smk"
     include: "rules/probtrack_vol.smk"
