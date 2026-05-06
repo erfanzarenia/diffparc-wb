@@ -1,59 +1,67 @@
-# ---- begin snakebids boilerplate ----------------------------------------------
-
 import snakebids
 from snakebids import bids
 
 
-
 configfile: "config/snakebids.yml"
 
+report: "../workflow/report/workflow.rst"
 
-if config["no_surf"]:
-    config["surface_metrics"] = None
+config.setdefault("anat_only", False)
+config.setdefault("no_surf", False)
+config.setdefault("no_vol", False)
+config.setdefault("use_template_parcellation", False)
+config.setdefault("use_vbm", False)
 
-if config["no_vol"]:
-    config["volume_metrics"] = None
+config.setdefault("use_eddy", False)
+config.setdefault("use_topup", False)
+config.setdefault("eddy_no_s2v", False)
+config.setdefault("eddy_no_quad", False)
+config.setdefault("no_bedpost", False)
+config.setdefault("slspec_txt", False)
+config.setdefault("masking_method", "b0_BET")
+config.setdefault("b0_bet_frac", 0.5)
+config.setdefault("show_parallel_eta", False)
+config.setdefault("in_prepdwi_dir", False)
+config.setdefault("in_snakedwi_dir", False)
 
-if config["anat_only"]:
+config.setdefault("vbm", {
+    "tissue_lut": {"CSF": 1, "GM": 2, "WM": 3},
+    "dti_metrics": ["FA", "MD"],
+    "fwhm": ["2mm"],
+    "seg_method": "synthseg",
+})
 
-    # force use of template parcellation
+config.setdefault("eddy", {
+    "flags": {
+        "verbose": True,
+        "repol": True,
+        "cnr_maps": True,
+        "residuals": True,
+        "data_is_shelled": True,
+    },
+    "with_s2v": {
+        "mporder": 6,
+        "s2v_niter": 5,
+        "s2v_lambda": 1,
+        "s2v_interp": "trilinear",
+        "ol_type": "both",
+    },
+    "without_s2v": {
+        "ol_type": "sw",
+    },
+})
+
+# -----------------------------
+# Basic config normalization
+# -----------------------------
+if config.get("anat_only", False):
     config["use_template_parcellation"] = True
-
-    # remove dwi from bids inputs:
     del config["pybids_inputs"]["dwi"]
 
-    # remove any metrics involving FA or MD:
-    config["surface_metrics"] = [
-        metric
-        for metric in config["surface_metrics"]
-        if "FA" not in metric and "MD" not in metric
-    ]
-    config["aux_metrics"] = [
-        metric
-        for metric in config["aux_metrics"]
-        if "FA" not in metric and "MD" not in metric
-    ]
-    config["vbm"]["dti_metrics"] = [
-        metric
-        for metric in config["vbm"]["dti_metrics"]
-        if "FA" not in metric and "MD" not in metric
-    ]
 
-
-if config["use_template_parcellation"]:
-
-    # remove any metrics involving subj-specific parcellation (surface or volume):
-    config["surface_metrics"] = [
-        metric
-        for metric in config["surface_metrics"]
-        if "indepconn" not in metric and "bundle" not in metric
-    ]
-    config["volume_metrics"] = list(
-        set(config["volume_metrics"]).difference(["vol", "volmni"])
-    )
-
-
-# writes inputs_config.yml and updates config dict
+# -----------------------------
+# Snakebids input generation
+# -----------------------------
 inputs = snakebids.generate_inputs(
     bids_dir=config["bids_dir"],
     pybids_inputs=config["pybids_inputs"],
@@ -66,19 +74,11 @@ inputs = snakebids.generate_inputs(
 )
 
 
-# this adds constraints to the bids naming
 wildcard_constraints:
     **snakebids.get_wildcard_constraints(config["pybids_inputs"]),
     seed="[a-zA-Z0-9]+",
-    metric="[a-zA-Z0-9]+",
     hemi="L|R",
     targets="[a-zA-Z0-9]+",
-
-
-# ---- end snakebids boilerplate ------------------------------------------------
-
-
-report: "../workflow/report/workflow.rst"
 
 
 subj_wildcards = inputs.subj_wildcards
@@ -86,409 +86,56 @@ input_wildcards = inputs.input_wildcards
 input_zip_lists = inputs.input_zip_lists
 input_path = inputs.input_path
 
-# ------ subj_zip_list ---- (consider adding this logic to snakebids) ---------
-# create a subj_zip_list bids_input var to loop over subjects/sessions where
-# *all* the pybids inputs are present (e.g. T1w and dwi both present)
-#
-# does this by performing a set intersection of the (subject+session only) zip lists for different modalities
+root = config["root"]
 
+
+# -----------------------------
+# Build subject/session zip list
+# Only keep subject/session combos
+# present across all required inputs
+# -----------------------------
 subj_set_intersection = None
-subj_set_union = None  # union not really used except for finding set union - intersection (skipped subjects)
 subj_zip_list = None
 
 for bidsinput in config["pybids_inputs"].keys():
     zipl = inputs.input_zip_lists[bidsinput]
+
     if "session" in zipl:
-        # has session, so we have to zip, then use set to remove duplicates
         subj_set = set(zip(zipl["subject"], zipl["session"]))
     else:
-        # does not have session, so we can remove duplicates easily by using set
         subj_set = set(zipl["subject"])
 
     subj_set_intersection = (
         subj_set
-        if subj_set_intersection == None
+        if subj_set_intersection is None
         else subj_set.intersection(subj_set_intersection)
     )
-    subj_set_union = (
-        subj_set if subj_set_union == None else subj_set.union(subj_set_union)
-    )
 
-
-subj_set_difference = subj_set_union - subj_set_intersection
-# print(f'Skipping following (subjects/sessions) since they are missing one of the required bids inputs: {subj_set_difference}')
+if subj_set_intersection is None:
+    raise ValueError("No valid BIDS inputs found.")
 
 if "session" in zipl:
-    (subzip, seszip) = zip(*list(subj_set_intersection))  # zip it up again
-    subj_zip_list = {
-        "subject": subzip,
-        "session": seszip,
-    }  # create the new subj_zip_list
-
+    if len(subj_set_intersection) == 0:
+        subj_zip_list = {"subject": [], "session": []}
+    else:
+        subzip, seszip = zip(*list(subj_set_intersection))
+        subj_zip_list = {
+            "subject": list(subzip),
+            "session": list(seszip),
+        }
 else:
     subj_zip_list = {"subject": list(subj_set_intersection)}
 
-# ------------------------------------------------------------------------------
 
-
-# set the default bids root for output files
-root = config["root"]
-
-
-def get_eddy_quad_all():
-    if config["eddy_no_quad"]:
-        return {}
-    else:
-        return {
-            "eddy_qc": expand(
-                bids(
-                    root=root, datatype="dwi", suffix="eddy.qc_pages", **subj_wildcards
-                ),
-                zip,
-                **subj_zip_list
-            )
-        }
-
-
-def get_bedpost_all():
-    if config["no_bedpost"]:
-        return {}
-    else:
-        return {
-            "bedpost": expand(
-                bids(
-                    root=root,
-                    datatype="dwi",
-                    suffix="diffusion.bedpostX",
-                    desc="eddy",
-                    space="T1w",
-                    res=config["resample_dwi"]["resample_scheme"],
-                    **subj_wildcards
-                ),
-                zip,
-                **subj_zip_list
-            )
-        }
-
-
-rule all_group_dscalar:
-    input:
-        cifti_dscalar_group=expand(
-            bids(
-                root=root,
-                subject="group",
-                from_="{template}",
-                datatype="surf",
-                label="{seed}",
-                suffix="inout.dscalar.nii",
-            ),
-            template=config["template"],
-            seed=config["seeds"].keys(),
-        ),
-
-
-rule all_template:
-    input:
-        surf_normals=expand(
-            os.path.join(
-                workflow.basedir,
-                "..",
-                "resources/tpl-{template}/tpl-{template}_hemi-{hemi}_label-{seed}_normals.shape.gii",
-            ),
-            template=config["template"],
-            hemi=config["hemispheres"],
-            seed=config["seeds"],
-        ),
-
-
-rule all_preprocdwi:
-    input:
-        **get_eddy_quad_all(),
-        **get_bedpost_all(),
-        mask_qc=expand(
-            bids(root="qc", suffix="mask.png", desc="brain", **subj_wildcards),
-            zip,
-            **subj_zip_list
-        ),
-        reg_qc=expand(
-            bids(
-                root="qc", suffix="reg.png", from_="dwiref", to="T1w", **subj_wildcards
-            ),
-            zip,
-            **subj_zip_list
-        ),
-        dtifit=expand(
-            bids(
-                root=root,
-                datatype="dwi",
-                suffix="dtifit",
-                desc="eddy",
-                space="T1w",
-                res=config["resample_dwi"]["resample_scheme"],
-                **subj_wildcards
-            ),
-            zip,
-            **subj_zip_list
-        ),
-
-
-def get_vol_subj_tables():
-    csvs = []
-    if len(config["volume_metrics"]) == 0:
-        return []
-    for seed in config["select_seeds"]:
-        csvs.extend(
-            expand(
-                expand(
-                    bids(
-                        root=root,
-                        datatype="tabular",
-                        desc="{targets}",
-                        label="{seed}",
-                        seedspervoxel="{seedspervoxel}",
-                        method="{method}",
-                        suffix="{suffix}.csv",
-                        **subj_wildcards,
-                    ),
-                    hemi=config["hemispheres"],
-                    seed=seed,
-                    targets=config["seeds"][seed]["targets"],
-                    seedspervoxel=config["seeds"][seed]["seeds_per_voxel"],
-                    method=config["methods"],
-                    suffix=config["volume_metrics"],
-                    allow_missing=True,
-                ),
-                zip,
-                **subj_zip_list,
-            )
-        )
-    return csvs
-
-
-def get_surf_subj_tables():
-    csvs = []
-    if config["surface_metrics"] == None:
-        return []
-
-    for seed in config["select_seeds"]:
-        # dti metrics (currently only mrtrix):
-        csvs.extend(
-            expand(
-                expand(
-                    bids(
-                        root=root,
-                        datatype="tabular",
-                        desc="{targets}",
-                        label="{seed}",
-                        seedspervertex="{seedspervertex}",
-                        method="{method}",
-                        suffix="{suffix}.csv",
-                        **subj_wildcards,
-                    ),
-                    hemi=config["hemispheres"],
-                    seed=seed,
-                    targets=config["seeds"][seed]["targets"],
-                    seedspervertex=config["seeds"][seed]["seeds_per_vertex"],
-                    method=list(set(config["methods"]).intersection({"mrtrix"})),
-                    suffix=list(
-                        set(config["surface_metrics"]).intersection(
-                            {"bundleFA", "bundleMD"}
-                        )
-                    ),
-                    allow_missing=True,
-                ),
-                zip,
-                **subj_zip_list,
-            )
-        )
-        # surface-based (enclosed) volume metrics (not parcellated)
-        csvs.extend(
-            expand(
-                expand(
-                    bids(
-                        root=root,
-                        datatype="tabular",
-                        method="{method}",
-                        suffix="{suffix}.csv",
-                        **subj_wildcards,
-                    ),
-                    method=config["methods"],
-                    suffix=list(
-                        set(config["surface_metrics"]).intersection(
-                            {"surfvol", "surfvolmni"}
-                        )
-                    ),
-                    allow_missing=True,
-                ),
-                zip,
-                **subj_zip_list,
-            )
-        )
-        # rest of the metrics
-        csvs.extend(
-            expand(
-                expand(
-                    bids(
-                        root=root,
-                        datatype="tabular",
-                        desc="{targets}",
-                        label="{seed}",
-                        seedspervertex="{seedspervertex}",
-                        method="{method}",
-                        suffix="{suffix}.csv",
-                        **subj_wildcards,
-                    ),
-                    hemi=config["hemispheres"],
-                    seed=seed,
-                    targets=config["seeds"][seed]["targets"],
-                    seedspervertex=config["seeds"][seed]["seeds_per_vertex"],
-                    method=config["methods"],
-                    suffix=list(
-                        set(config["surface_metrics"]).difference(
-                            {"bundleFA", "bundleMD", "surfvol", "surfvolmni"}
-                        )
-                    ),
-                    allow_missing=True,
-                ),
-                zip,
-                **subj_zip_list,
-            )
-        )
-
-    return csvs
-
-
-def get_subj_spec():
-    specs = []
-    if config["surface_metrics"] == None:
-        return []
-    for seed in config["select_seeds"]:
-        specs.extend(
-            expand(
-                expand(
-                    bids(
-                        root=root,
-                        datatype="surf",
-                        suffix="{seed}.spec",
-                        **subj_wildcards,
-                    ),
-                    seed=seed,
-                    allow_missing=True,
-                ),
-                zip,
-                **subj_zip_list,
-            )
-        )
-    return specs
-
-
-def get_aux_dseg_subj_tables():
-    if config["aux_metrics"] == None:
-        return []
-    else:
-        return expand(
-            expand(
-                bids(
-                    root=root,
-                    datatype="tabular",
-                    method="{dseg_method}",
-                    suffix="{metric}.csv",
-                    **subj_wildcards,
-                ),
-                metric=config["aux_metrics"],
-                dseg_method=config["aux_dseg"].keys(),
-                allow_missing=True,
-            ),
-            zip,
-            **subj_zip_list,
-        )
-
-
-def get_subj_vbm():
-
-    if config["use_vbm"]:
-        return expand(
-            expand(
-                bids(
-                    root=root,
-                    datatype="vbm",
-                    space=config["template"],
-                    method=config["vbm"]["seg_method"],
-                    fwhm="{fwhm}",
-                    desc="{tissue}",
-                    suffix="moddensity.nii.gz",
-                    **subj_wildcards,
-                ),
-                tissue=config["vbm"]["tissue_lut"].keys(),
-                fwhm=config["vbm"]["fwhm"],
-                allow_missing=True,
-            ),
-            zip,
-            **subj_zip_list,
-        )
-    else:
-        return []
-
-
-def get_subj_dti_vbm():
-
-    if config["use_vbm"]:
-        return expand(
-            expand(
-                bids(
-                    root=root,
-                    datatype="vbm",
-                    space=config["template"],
-                    desc="dti",
-                    fwhm="{fwhm}",
-                    suffix="{metric}.nii.gz",
-                    **subj_wildcards,
-                ),
-                metric=config["vbm"]["dti_metrics"],
-                fwhm=config["vbm"]["fwhm"],
-                allow_missing=True,
-            ),
-            zip,
-            **subj_zip_list,
-        )
-    else:
-        return []
-
-
-def get_subj_qc():
-    qc_snaps = []
-    if config["volume_metrics"] == None or config["surface_metrics"] == None:
-        return []
-    for seed in config["select_seeds"]:
-        qc_snaps.extend(
-            expand(
-                expand(
-                    bids(
-                        root=root,
-                        datatype="qc",
-                        desc="{targets}",
-                        method="{method}",
-                        seedspervertex="{seedspervertex}",
-                        suffix="{seed}QC.png",
-                        **subj_wildcards,
-                    ),
-                    seed=seed,
-                    targets=config["seeds"][seed]["targets"],
-                    seedspervertex=config["seeds"][seed]["seeds_per_vertex"],
-                    method=config["methods"],
-                    allow_missing=True,
-                ),
-                zip,
-                **subj_zip_list,
-            )
-        )
-    return qc_snaps
-
-
+# -----------------------------
+# Final target helpers
+# -----------------------------
 def get_subj_nlincrop_conn():
     files = []
-    if config["no_vol"]:
+
+    if config.get("no_vol", False) or config.get("disable_voxelwise_conn", False):
         return []
+
     for seed in config["select_seeds"]:
         files.extend(
             expand(
@@ -517,12 +164,16 @@ def get_subj_nlincrop_conn():
                 **subj_zip_list,
             )
         )
+
     return files
+
 
 def get_subj_global_conn_sift2():
     files = []
-    if config["no_vol"]:
+
+    if config["no_vol"] or not config.get("enable_global_conn", False):
         return []
+
     for seed in config["select_seeds"]:
         files.extend(
             expand(
@@ -533,14 +184,11 @@ def get_subj_global_conn_sift2():
                         hemi="{hemi}",
                         desc="{targets}",
                         label="{seed}",
-                        seedspervoxel="{seedspervoxel}",
-                        method="mrtrix",
-                        suffix="conn_global_sift2.csv",
+                        suffix="sift2_conn.csv",
                         **subj_wildcards,
                     ),
                     seed=seed,
                     targets=config["seeds"][seed]["targets"],
-                    seedspervoxel=config["seeds"][seed]["seeds_per_voxel"],
                     hemi=config["hemispheres"],
                     allow_missing=True,
                 ),
@@ -548,45 +196,39 @@ def get_subj_global_conn_sift2():
                 **subj_zip_list,
             )
         )
+
     return files
 
+
+# -----------------------------
+# Main target for your current use case
+# -----------------------------
 rule all_nlincrop_conn:
     input:
         get_subj_nlincrop_conn(),
-        get_subj_global_conn_sift2() if config.get("enable_global_conn", False) else [],
+        get_subj_global_conn_sift2()
 
 
 rule all:
     input:
-        get_subj_spec(),
-        get_surf_subj_tables(),
-        get_vol_subj_tables(),
-        get_aux_dseg_subj_tables(),
-        get_subj_qc(),
-        get_subj_vbm(),
-        get_subj_dti_vbm(),
+        get_subj_global_conn_sift2()
     default_target: True
 
 
+# -----------------------------
+# Includes actually relevant
+# -----------------------------
 include: "rules/common.smk"
+include: "rules/container_check.smk"
+
 include: "rules/preproc_t1.smk"
 include: "rules/reg_t1_to_template.smk"
 include: "rules/synthseg.smk"
-include: "rules/surfgen.smk"
 include: "rules/prop_seeds_targets.smk"
-include: "rules/surfdisp.smk"
-include: "rules/surfarea.smk"
-include: "rules/postproc_surf.smk"
 include: "rules/postproc_vol.smk"
-include: "rules/cifti.smk"
-include: "rules/tables.smk"
-include: "rules/visqc.smk"
 include: "rules/normalize.smk"
-include: "rules/vbm.smk"
-
 
 if not config["anat_only"]:
-
     include: "rules/preproc_dwi.smk"
     include: "rules/motioncorr.smk"
     include: "rules/masking_bet_from-b0.smk"
@@ -594,9 +236,9 @@ if not config["anat_only"]:
     include: "rules/reg_dwi_to_t1.smk"
     include: "rules/mrtrix.smk"
     include: "rules/bedpost.smk"
-    include: "rules/mrtrix_vol.smk"
-    include: "rules/mrtrix_vol_global.smk"
-    include: "rules/mrtrix_surf.smk"
-    include: "rules/probtrack_surf.smk"
-    include: "rules/probtrack_vol.smk"
-    include: "rules/parcbundles.smk"
+    include: "rules/mrtrix_wb.smk"
+
+    if not config.get("disable_voxelwise_conn", False):
+        include: "rules/mrtrix_vol.smk"
+        include: "rules/probtrack_vol.smk"
+        include: "rules/parcbundles.smk"
