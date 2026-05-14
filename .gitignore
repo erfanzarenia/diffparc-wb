@@ -1,6 +1,7 @@
 !diffparc/config
 !diffparc/config/*
 !diffparc/resources
+diffparc/resources/apptainer/*
 !diffparc/resources/*
 !diffparc/workflow
 !diffparc/workflow/**

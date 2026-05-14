@@ -7,6 +7,9 @@ import os
 # Script path
 VOXEL_AGG_SCRIPT = os.path.join(workflow.basedir, "scripts", "voxel_target_aggregate.py")
 
+def res(rule, key, default):
+    return config.get("resources", {}).get(rule, {}).get(key, default)
+
 # ROI toggle + seeds list
 def roi_enabled():
     return config.get("roi_enrichment", {}).get("enabled", False)
@@ -72,10 +75,10 @@ rule act_5ttgen:
         five_tt="sub-{subject}/anat/sub-{subject}_desc-5tt_method-mrtrix.mif",
     log:
         "logs/sub-{subject}/act_5ttgen.log",
-    threads: 4
+    threads: lambda wc: res("act_5ttgen", "threads", 8)
     resources:
-        mem_mb=32000,
-        time=60 * 2
+        mem_mb=lambda wc: res("act_5ttgen", "mem_mb", 32000),
+        time=lambda wc: res("act_5ttgen", "time_min", 180)
     container:
         config["singularity"]["diffparc"]
     group:
@@ -101,7 +104,10 @@ rule act_gmwmi:
         gmwmi="sub-{subject}/anat/sub-{subject}_desc-gmwmi_method-mrtrix.mif",
     log:
         "logs/sub-{subject}/act_gmwmi.log",
-    threads: 1
+    threads: lambda wc: res("act_gmwmi", "threads", 2)
+    resources:
+        mem_mb=lambda wc: res("act_gmwmi", "mem_mb", 8000),
+        time=lambda wc: res("act_gmwmi", "time_min", 30)
     container:
         config["singularity"]["diffparc"]
     group:
@@ -143,10 +149,10 @@ rule wb_tckgen_chunk:
         "logs/sub-{subject}/tracts/sub-{subject}_desc-wb_chunk-{chunk}_tckgen.log",
     benchmark:
         "benchmarks/sub-{subject}/tracts/sub-{subject}_desc-wb_chunk-{chunk}_tckgen.tsv"
-    threads: lambda wc: config.get("mrtrix", {}).get("wb_threads", 16)
+    threads: lambda wc: res("wb_tckgen_chunk", "threads", 10)
     resources:
-        mem_mb=128000,
-        time=60 * 24,
+        mem_mb=lambda wc: res("wb_tckgen_chunk", "mem_mb", 40000),
+        time=lambda wc: res("wb_tckgen_chunk", "time_min", 1200)
     group:
         "subj"
     container:
@@ -195,7 +201,12 @@ rule wb_tckgen:
             root=root, datatype="tracts", method="mrtrix",
             desc="wb", suffix="tractography_tckinfo.txt", **subj_wildcards
         ),
-    threads: 1
+    log:
+        "logs/sub-{subject}/tracts/sub-{subject}_desc-wb_merge.log",
+    threads: lambda wc: res("wb_tckgen_merge", "threads", 2)
+    resources:
+        mem_mb=lambda wc: res("wb_tckgen_merge", "mem_mb", 8000),
+        time=lambda wc: res("wb_tckgen_merge", "time_min", 60)
     container:
         config["singularity"]["diffparc"]
     group:
@@ -204,9 +215,10 @@ rule wb_tckgen:
         r"""
         set -euo pipefail
         mkdir -p "$(dirname "{output.tck}")"
+        mkdir -p "$(dirname "{log}")"
 
-        tckedit -force {input.tcks} "{output.tck}"
-        tckinfo "{output.tck}" > "{output.tckinfo}"
+        tckedit -force {input.tcks} "{output.tck}" &> "{log}"
+        tckinfo "{output.tck}" > "{output.tckinfo}" 2>> "{log}"
         """
         
 # -----------------------------
@@ -251,7 +263,10 @@ rule roi_tckgen:
         "logs/sub-{subject}/tracts/sub-{subject}_hemi-{hemi}_label-{seed}_roi_tckgen.log",
     benchmark:
         "benchmarks/sub-{subject}/tracts/sub-{subject}_hemi-{hemi}_label-{seed}_roi_tckgen.tsv"
-    threads: lambda wc: config.get("mrtrix", {}).get("roi_threads", 8)
+    threads: lambda wc: res("roi_tckgen", "threads", 6)
+    resources:
+        mem_mb=lambda wc: res("roi_tckgen", "mem_mb", 24000),
+        time=lambda wc: res("roi_tckgen", "time_min", 120)
     container:
         config["singularity"]["diffparc"]
     group:
@@ -301,9 +316,14 @@ rule roi_merge_all:
             root=root, datatype="tracts", method="mrtrix",
             desc="roi", suffix="tractography_merged_tckinfo.txt", **subj_wildcards
         ),
+    log:
+        "logs/sub-{subject}/tracts/sub-{subject}_desc-roi_merge_all.log",
     params:
         roi_on=lambda wc: 1 if roi_enabled() else 0
-    threads: 1
+    threads: lambda wc: res("roi_merge_all", "threads", 2)
+    resources:
+        mem_mb=lambda wc: res("roi_merge_all", "mem_mb", 8000),
+        time=lambda wc: res("roi_merge_all", "time_min", 30)
     container:
         config["singularity"]["diffparc"]
     group:
@@ -313,6 +333,7 @@ rule roi_merge_all:
         set -euo pipefail
         mkdir -p "$(dirname "{output.tck}")"
         mkdir -p "$(dirname "{output.tckinfo}")"
+        mkdir -p "$(dirname "{log}")"
 
         if [ "{params.roi_on}" -eq 1 ]; then
           inputs=""
@@ -327,11 +348,12 @@ rule roi_merge_all:
             exit 1
           fi
 
-          tckedit -force $inputs "{output.tck}"
-          tckinfo "{output.tck}" > "{output.tckinfo}"
+          tckedit -force $inputs "{output.tck}" &> "{log}"
+          tckinfo "{output.tck}" > "{output.tckinfo}" 2>> "{log}"
         else
           : > "{output.tck}"
           printf "ROI disabled\n" > "{output.tckinfo}"
+          printf "ROI disabled\n" > "{log}"
         fi
         """
 
@@ -352,7 +374,12 @@ rule tractogram_for_sift2:
             root=root, datatype="tracts", method="mrtrix",
             desc="wbplusroi", suffix="tractography_tckinfo.txt", **subj_wildcards
         ),
-    threads: 1
+    log:
+        "logs/sub-{subject}/tracts/sub-{subject}_desc-wbplusroi_merge.log",
+    threads: lambda wc: res("tractogram_for_sift2", "threads", 2)
+    resources:
+        mem_mb=lambda wc: res("tractogram_for_sift2", "mem_mb", 8000),
+        time=lambda wc: res("tractogram_for_sift2", "time_min", 90)
     container: config["singularity"]["diffparc"]
     group:
         "subj"
@@ -360,14 +387,15 @@ rule tractogram_for_sift2:
         r"""
         set -euo pipefail
         mkdir -p "$(dirname "{output.tck}")"
+        mkdir -p "$(dirname "{log}")"
 
         if [ -s "{input.roi}" ]; then
-          tckedit -force "{input.wb}" "{input.roi}" "{output.tck}"
+          tckedit -force "{input.wb}" "{input.roi}" "{output.tck}" &> "{log}"
         else
-          ln -sf "$(readlink -f "{input.wb}")" "{output.tck}"
+          ln -sf "$(readlink -f "{input.wb}")" "{output.tck}" &> "{log}"
         fi
 
-        tckinfo "{output.tck}" > "{output.tckinfo}"
+        tckinfo "{output.tck}" > "{output.tckinfo}" 2>> "{log}"
         """
 
 
@@ -388,20 +416,14 @@ rule wb_tcksift2:
             root=root, datatype="tracts", method="mrtrix",
             desc="wbplusroi", suffix="sift2_mu.txt", **subj_wildcards
         ),
-        sift2_log=bids(
-            root="logs",
-            **subj_wildcards,
-            datatype="tracts",
-            desc="wbplusroi",
-            method="mrtrix",
-            suffix="tcksift2.log",
-        ),
+    log:
+        "logs/sub-{subject}/tracts/sub-{subject}_desc-wbplusroi_method-mrtrix_tcksift2.log",
     benchmark:
         "benchmarks/sub-{subject}/tracts/sub-{subject}_desc-wbplusroi_method-mrtrix_tcksift2.tsv",
-    threads: lambda wc: config.get("mrtrix", {}).get("sift2_threads", 8)
+    threads: lambda wc: res("wb_tcksift2", "threads", 10)
     resources:
-        mem_mb=32000,
-        time=60 * 4,
+        mem_mb=lambda wc: res("wb_tcksift2", "mem_mb", 40000),
+        time=lambda wc: res("wb_tcksift2", "time_min", 300)
     group:
         "subj"
     container:
@@ -409,11 +431,11 @@ rule wb_tcksift2:
     shell:    
         r"""
         set -euo pipefail
-        mkdir -p "$(dirname "{output.sift2_log}")"
+        mkdir -p "$(dirname "{log}")"
 
         tcksift2 -nthreads {threads} -act "{input.five_tt}" -out_mu "{output.mu}" \
           "{input.tck}" "{input.wm_fod}" "{output.weights}" \
-          &> "{output.sift2_log}"
+          &> "{log}"
         """
 
 
@@ -451,10 +473,10 @@ rule wb_filter_seed_tck:
         "logs/sub-{subject}/tracts/sub-{subject}_hemi-{hemi}_label-{seed}_wb_filter_seed_tck.log",
     benchmark:
         "benchmarks/sub-{subject}/tracts/sub-{subject}_hemi-{hemi}_label-{seed}_wb_filter_seed_tck.tsv",
-    threads: 4
+    threads: lambda wc: res("wb_filter_seed_tck", "threads", 4)
     resources:
-        mem_mb=16000,
-        time=60 * 2,
+        mem_mb=lambda wc: res("wb_filter_seed_tck", "mem_mb", 16000),
+        time=lambda wc: res("wb_filter_seed_tck", "time_min", 90)
     group:
         "subj"
     container:
@@ -499,10 +521,10 @@ rule wb_targets_assignments:
         "logs/sub-{subject}/tracts/sub-{subject}_hemi-{hemi}_label-{seed}_desc-{targets}_assignments.log",
     benchmark:
         "benchmarks/sub-{subject}/tracts/sub-{subject}_hemi-{hemi}_label-{seed}_desc-{targets}_assignments.tsv",
-    threads: 4
+    threads: lambda wc: res("wb_targets_assignments", "threads", 4)
     resources:
-        mem_mb=64000,
-        time=120
+        mem_mb=lambda wc: res("wb_targets_assignments", "mem_mb", 16000),
+        time=lambda wc: res("wb_targets_assignments", "time_min", 30)
     container:
         config["singularity"]["diffparc"]
     group:
@@ -547,10 +569,10 @@ rule wb_voxelwise_seed_to_targets_matrix:
     params:
         script=lambda wc: VOXEL_AGG_SCRIPT,
         header=lambda wc: ",".join(config["targets"][wc.targets]["labels"]),
-    threads: 4
+    threads: lambda wc: res("wb_voxelwise_seed_to_targets_matrix", "threads", 4)
     resources:
-        mem_mb=128000,
-        time=180
+        mem_mb=lambda wc: res("wb_voxelwise_seed_to_targets_matrix", "mem_mb", 16000),
+        time=lambda wc: res("wb_voxelwise_seed_to_targets_matrix", "time_min", 90)
     container:
         config["singularity"]["diffparc"]
     group:
