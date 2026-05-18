@@ -23,6 +23,8 @@ config.setdefault("b0_bet_frac", 0.5)
 config.setdefault("show_parallel_eta", False)
 config.setdefault("in_prepdwi_dir", False)
 config.setdefault("in_snakedwi_dir", False)
+config.setdefault("mask_sweep", {})
+config["mask_sweep"].setdefault("enabled", False)
 
 config.setdefault("vbm", {
     "tissue_lut": {"CSF": 1, "GM": 2, "WM": 3},
@@ -199,6 +201,25 @@ def get_subj_global_conn_sift2():
 
     return files
 
+def get_mask_sweep_outputs():
+    if not config.get("mask_sweep", {}).get("enabled", False):
+        return []
+
+    subjects = sorted(set(inputs.input_zip_lists["T1w"]["subject"]))
+    mask_sources = config["mask_sweep"].get("mask_sources", ["native"])
+    thresholds = config["mask_sweep"]["thresholds"]
+    thr_tags = [str(t).replace(".", "p") for t in thresholds]
+
+    return expand(
+        "sub-{subject}/tracts/mask_sweep/{mask_source}/"
+        "sub-{subject}_hemi-{hemi}_label-{seed}_thr-{thr_tag}_desc-{targets}_sift2_conn.csv",
+        subject=subjects,
+        mask_source=mask_sources,
+        hemi=["L", "R"],
+        seed=["vtasnc"],
+        targets=["Yeo7TianS3"],
+        thr_tag=thr_tags,
+    )
 
 # -----------------------------
 # Main target for your current use case
@@ -206,7 +227,8 @@ def get_subj_global_conn_sift2():
 rule all_nlincrop_conn:
     input:
         get_subj_nlincrop_conn(),
-        get_subj_global_conn_sift2()
+        get_subj_global_conn_sift2(),
+        get_mask_sweep_outputs()
 
 
 rule all:
@@ -237,6 +259,7 @@ if not config["anat_only"]:
     include: "rules/mrtrix.smk"
     include: "rules/bedpost.smk"
     include: "rules/mrtrix_wb.smk"
+    include: "rules/mask_sweep.smk"
 
     if not config.get("disable_voxelwise_conn", False):
         include: "rules/mrtrix_vol.smk"

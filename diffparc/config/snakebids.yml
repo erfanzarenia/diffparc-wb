@@ -784,11 +784,11 @@ seeds:
 ###    seeds_per_voxel:
 ###      - 5000
     normalize_percentile: 95 #normalize connectivity to each target before maxprob
-###aux_dseg:
-  ###synthseg:
-  ###  label_tsv: 'resources/synthseg_simple_labels.tsv'
-  ###synthsegcortparc:
-  ###  label_tsv: 'resources/synthseg_cortparc_labels.tsv'
+aux_dseg:
+  synthseg:
+    label_tsv: 'resources/synthseg_simple_labels.tsv'
+  synthsegcortparc:
+    label_tsv: 'resources/synthseg_cortparc_labels.tsv'
 ###vbm:
 ###  tissue_lut: 
 ###    CSF: 1
@@ -801,10 +801,10 @@ seeds:
  ###   - 2mm
  ###   - 6mm
   ###  - 10mm
- ### seg_method: 'synthseg'
+  seg_method: 'synthseg'
 
 
-###synthseg_labels:
+synthseg_labels:
 ###  striatum:
 ###    L:
 ###      - 11
@@ -814,7 +814,9 @@ seeds:
  ###     - 50
  ###     - 51
   ###    - 58
-
+  vtasnc:
+    L: "16"
+    R: "16"
 
 hemispheres:
   - 'L'
@@ -876,14 +878,14 @@ mrtrix:
   maxlength: 250
   cutoff: 0.06
   
-mrtrix_rng_seed: 112 #random number generator seed for reproducible results
+mrtrix_rng_seed: 745 #random number generator seed for reproducible results
   
 wb_chunk_count: 2
-wb_chunk_streamlines: 5000
+wb_chunk_streamlines: 50000000
 
 roi_enrichment:
   enabled: True
-  seeds_per_voxel: 10
+  seeds_per_voxel: 3000
 
 resources:
   act_5ttgen:
@@ -941,7 +943,17 @@ resources:
     mem_mb: 16000
     time_min: 90
 
-#gnu_parallel_jobs: 16
+mask_sweep:
+  enabled: true
+  thresholds:
+    - 0.05
+    - 0.1
+#    - 0.15
+#    - 0.2
+#    - 0.25
+  mask_sources:
+    - native
+    - brainsteminjected
 
 resample_seed_res: '1x1x1mm' #for resampling seeds/targets
 
