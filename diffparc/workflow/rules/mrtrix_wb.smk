@@ -56,7 +56,7 @@ rule binarize_trim_subject_seed:
         "subj"
     shell:
         "c3d -int 0 {input.seed} -threshold {params.threshold} inf 1 0 "
-        "-dilate 1 3x3x3vox -resample-mm {params.resample_res} -trim 0vox "
+        "-resample-mm {params.resample_res} -trim 0vox "
         "-type uchar -o {output.seed_thr} &> {log}"
 
 
@@ -559,6 +559,7 @@ rule wb_voxelwise_seed_to_targets_matrix:
     output:
         weighted="sub-{subject}/tracts/sub-{subject}_hemi-{hemi}_label-{seed}_desc-{targets}_sift2_conn.csv",
         voxel_index="sub-{subject}/tracts/sub-{subject}_hemi-{hemi}_label-{seed}_desc-{targets}_seed_voxel_index.csv",
+        qc="sub-{subject}/tracts/sub-{subject}_hemi-{hemi}_label-{seed}_desc-{targets}_voxelagg_qc.json",
         counts=temp("{}".format(
             config["tmp_dir"] + "/sub-{subject}/tracts/sub-{subject}_hemi-{hemi}_label-{seed}_desc-{targets}_conn_voxelwise_global_counts.csv"
         )),
@@ -594,5 +595,6 @@ rule wb_voxelwise_seed_to_targets_matrix:
           --out-weighted "{output.weighted}" \
           --out-counts "{output.counts}" \
           --out-voxel-index "{output.voxel_index}" \
+          --out-qc "{output.qc}" \
           &> "{log}"
         """

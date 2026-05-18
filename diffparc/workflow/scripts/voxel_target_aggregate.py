@@ -3,6 +3,7 @@
 import argparse
 import os
 import sys
+import json
 
 import nibabel as nib
 import numpy as np
@@ -148,6 +149,7 @@ def main():
     ap.add_argument("--out-weighted", required=True)
     ap.add_argument("--out-counts", required=True)
     ap.add_argument("--out-voxel-index", required=True)
+    ap.add_argument("--out-qc", required=False, help="Output QC summary as JSON")
 
     args = ap.parse_args()
 
@@ -324,6 +326,27 @@ def main():
         comments="",
         fmt="%d",
     )
+    
+    if args.out_qc:
+        os.makedirs(os.path.dirname(args.out_qc), exist_ok=True)
+
+        qc = {
+            "streamlines_read": int(n_sl),
+            "weights_read": int(weights.shape[0]),
+            "assignments_read": int(assignments.shape[0]),
+            "seed_voxels": int(n_seed),
+            "target_columns": int(n_targets),
+            "endpoint_in_seed_first": int(f_in_seed.sum()),
+            "endpoint_in_seed_last": int(l_in_seed.sum()),
+            "both_endpoints_in_seed": int(both_in_seed.sum()),
+            "valid_streamlines_used_before_row_mapping": int(valid.sum()),
+            "valid_streamlines_mapped_to_seed_rows": int(ok.sum()),
+            "dropped_after_valid_check": int(n_sl - valid.sum()),
+            "dropped_after_row_mapping": int(valid.sum() - ok.sum()),
+        }
+
+        with open(args.out_qc, "w") as f:
+            json.dump(qc, f, indent=2)    
 
     log("QC summary:")
     log(f"  Streamlines read: {n_sl}")
@@ -338,7 +361,7 @@ def main():
     log(f"  Valid streamlines mapped to seed rows: {ok.sum()}")
     log(f"  Dropped after valid check: {n_sl - valid.sum()}")
     log(f"  Dropped after row mapping: {valid.sum() - ok.sum()}")
-
+    
     return 0
 
 
