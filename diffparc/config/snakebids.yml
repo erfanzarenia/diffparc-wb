@@ -868,93 +868,6 @@ fod_algorithm: msmt_csd
 enable_global_conn: true
 disable_voxelwise_conn: true
 
-methods:
-  - mrtrix
-
-mrtrix:
-  step: 0.75
-  angle: 45
-  minlength: 10
-  maxlength: 250
-  cutoff: 0.06
-  
-mrtrix_rng_seed: 745 #random number generator seed for reproducible results
-  
-wb_chunk_count: 2
-wb_chunk_streamlines: 50000000
-
-roi_enrichment:
-  enabled: True
-  seeds_per_voxel: 3000
-
-resources:
-  act_5ttgen:
-    threads: 8
-    mem_mb: 32000
-    time_min: 180
-
-  act_gmwmi:
-    threads: 2
-    mem_mb: 8000
-    time_min: 30
-
-  wb_tckgen_chunk:
-    threads: 6
-    mem_mb: 40000
-    time_min: 1200
-
-  wb_tckgen_merge:
-    threads: 2
-    mem_mb: 8000
-    time_min: 60
-
-  roi_tckgen:
-    threads: 4
-    mem_mb: 24000
-    time_min: 120
-
-  roi_merge_all:
-    threads: 2
-    mem_mb: 8000
-    time_min: 30
-
-  tractogram_for_sift2:
-    threads: 2
-    mem_mb: 8000
-    time_min: 90
-
-  wb_tcksift2:
-    threads: 10
-    mem_mb: 40000
-    time_min: 300
-
-  wb_filter_seed_tck:
-    threads: 4
-    mem_mb: 16000
-    time_min: 90
-
-  wb_targets_assignments:
-    threads: 4
-    mem_mb: 16000
-    time_min: 30
-
-  wb_voxelwise_seed_to_targets_matrix:
-    threads: 4
-    mem_mb: 16000
-    time_min: 90
-
-mask_sweep:
-  enabled: true
-  thresholds:
-    - 0.05
-    - 0.1
-#    - 0.15
-#    - 0.2
-#    - 0.25
-  mask_sources:
-    - native
-    - brainsteminjected
-
 resample_seed_res: '1x1x1mm' #for resampling seeds/targets
 
 #voxel-based-seeding tractography (can move these to structure-specific config later..)
@@ -985,3 +898,90 @@ show_parallel_eta: False
 nat_only: False
 use_template_parcellation: False
 ###use_vbm: False
+
+methods:
+  - mrtrix
+
+mrtrix:
+  step: 0.75
+  angle: 45
+  minlength: 10
+  maxlength: 250
+  cutoff: 0.06
+  
+mrtrix_rng_seed: 745 #random number generator seed for reproducible results
+  
+wb_chunk_count: 2
+wb_chunk_streamlines: 50000000
+
+roi_enrichment:
+  enabled: True
+  seeds_per_voxel: 1000
+
+resources:
+  act_5ttgen:
+    threads: 8
+    mem_mb: 32000
+    time_min: 180
+
+  act_gmwmi:
+    threads: 2
+    mem_mb: 8000
+    time_min: 30
+
+  wb_tckgen_chunk:
+    threads: 6
+    mem_mb: 40000
+    time_min: 1200
+
+  wb_tckgen_merge:
+    threads: 2
+    mem_mb: 8000
+    time_min: 60
+
+  roi_tckgen:
+    threads: 4
+    mem_mb: 24000
+    time_min: 120
+
+  roi_tckgen_merge:
+    threads: 2
+    mem_mb: 8000
+    time_min: 30
+
+  final_tractogram:
+    threads: 2
+    mem_mb: 8000
+    time_min: 90
+
+  sift2:
+    threads: 10
+    mem_mb: 40000
+    time_min: 300
+
+  filter_tractogram:
+    threads: 4
+    mem_mb: 16000
+    time_min: 90
+
+  targets_assignments:
+    threads: 4
+    mem_mb: 16000
+    time_min: 30
+
+  voxelwise_connectivity:
+    threads: 4
+    mem_mb: 16000
+    time_min: 90
+
+mask_sweep:
+  enabled: true
+  thresholds:
+    - 0.05
+    - 0.1
+#    - 0.15
+#    - 0.2
+#    - 0.25
+  mask_sources:
+    - native
+    - brainsteminjected

@@ -4,7 +4,7 @@
 #   1. native: existing template-to-subject seed probseg
 #   2. brainsteminjected: template SN/VTA prior warped along a template-brainstem to subject-brainstem warp
 #
-# Reuses existing wbplusroi tractogram + SIFT2 weights.
+# Reuses existing final tractogram + SIFT2 weights.
 # Does NOT overwrite main pipeline masks.
 
 import os
@@ -74,7 +74,7 @@ rule all_mask_sweep:
     input:
         expand(
             "sub-{subject}/tracts/mask_sweep/{mask_source}/"
-            "sub-{subject}_hemi-{hemi}_label-{seed}_thr-{thr_tag}_desc-{targets}_sift2_conn.csv",
+            "sub-{subject}_hemi-{hemi}_label-{seed}_thr-{thr_tag}_desc-{targets}_connectivity_matrix.csv",
             subject=SUBJECTS,
             mask_source=MASK_SOURCES,
             hemi=HEMIS,
@@ -303,34 +303,34 @@ rule sweep_binarize_seed:
 # Filter existing tractogram by thresholded seed
 # -----------------------------
 
-rule sweep_filter_seed_tck:
+rule sweep_filter_tractogram:
     input:
-        wb_tck=ancient(
-            "sub-{subject}/tracts/sub-{subject}_desc-wbplusroi_method-mrtrix_tractography.tck"
+        tractogram=ancient(
+            "sub-{subject}/tracts/sub-{subject}_desc-final_method-mrtrix_tractography.tck"
         ),
-        wb_weights=ancient(
-            "sub-{subject}/tracts/sub-{subject}_desc-wbplusroi_method-mrtrix_sift2_weights.txt"
+        sift2_weights=ancient(
+            "sub-{subject}/tracts/sub-{subject}_desc-final_method-mrtrix_sift2_weights.txt"
         ),
         seed_mask=rules.sweep_binarize_seed.output.seed_mask,
     output:
-        seed_tck=temp(
+        tractogram=temp(
             config["tmp_dir"]
             + "/sub-{subject}/tracts/mask_sweep/{mask_source}/"
-            + "sub-{subject}_hemi-{hemi}_label-{seed}_thr-{thr_tag}_desc-wbplusroi_seed_endpoints.tck"
+            + "sub-{subject}_hemi-{hemi}_label-{seed}_thr-{thr_tag}_desc-seedfiltered_tractography.tck"
         ),
-        seed_weights=temp(
+        sift2_weights=temp(
             config["tmp_dir"]
             + "/sub-{subject}/tracts/mask_sweep/{mask_source}/"
-            + "sub-{subject}_hemi-{hemi}_label-{seed}_thr-{thr_tag}_desc-wbplusroi_seed_endpoints_weights.txt"
+            + "sub-{subject}_hemi-{hemi}_label-{seed}_thr-{thr_tag}_desc-seedfiltered_sift2_weights.txt"
         ),
-        seed_tckinfo=(
-            "sub-{subject}/tracts/mask_sweep/{mask_source}/"
-            "sub-{subject}_hemi-{hemi}_label-{seed}_thr-{thr_tag}_desc-wbplusroi_seed_endpoints_tckinfo.txt"
+        tckinfo=(
+            "sub-{subject}/qc/mask_sweep/{mask_source}/"
+            "sub-{subject}_hemi-{hemi}_label-{seed}_thr-{thr_tag}_desc-seedfiltered_method-mrtrix_tractography_tckinfo.txt"
         ),
     log:
-        "logs/sub-{subject}/mask_sweep/{mask_source}/sub-{subject}_hemi-{hemi}_label-{seed}_thr-{thr_tag}_filter_seed_tck.log",
+        "logs/sub-{subject}/mask_sweep/{mask_source}/sub-{subject}_hemi-{hemi}_label-{seed}_thr-{thr_tag}_filter_tractogram.log",
     benchmark:
-        "benchmarks/sub-{subject}/mask_sweep/{mask_source}/sub-{subject}_hemi-{hemi}_label-{seed}_thr-{thr_tag}_filter_seed_tck.tsv",
+        "benchmarks/sub-{subject}/mask_sweep/{mask_source}/sub-{subject}_hemi-{hemi}_label-{seed}_thr-{thr_tag}_filter_tractogram.tsv",
     threads: lambda wc: config.get("mrtrix", {}).get("filter_threads", 4)
     resources:
         mem_mb=16000,
@@ -340,20 +340,19 @@ rule sweep_filter_seed_tck:
     shell:
         r"""
         set -euo pipefail
-        mkdir -p "$(dirname "{output.seed_tck}")"
-        mkdir -p "$(dirname "{output.seed_tckinfo}")"
+        mkdir -p "$(dirname "{output.tractogram}")"
+        mkdir -p "$(dirname "{output.tckinfo}")"
         mkdir -p "$(dirname "{log}")"
 
-        tckedit "{input.wb_tck}" "{output.seed_tck}" \
+        tckedit "{input.tractogram}" "{output.tractogram}" \
           -include "{input.seed_mask}" \
           -ends_only \
-          -tck_weights_in "{input.wb_weights}" \
-          -tck_weights_out "{output.seed_weights}" \
+          -tck_weights_in "{input.sift2_weights}" \
+          -tck_weights_out "{output.sift2_weights}" \
           &> "{log}"
 
-        tckinfo "{output.seed_tck}" > "{output.seed_tckinfo}" 2>> "{log}"
+        tckinfo "{output.tractogram}" > "{output.tckinfo}" 2>> "{log}"
         """
-
 
 # -----------------------------
 # Assign filtered streamlines to targets
@@ -361,11 +360,11 @@ rule sweep_filter_seed_tck:
 
 rule sweep_targets_assignments:
     input:
-        tck=rules.sweep_filter_seed_tck.output.seed_tck,
+        tractogram=rules.sweep_filter_tractogram.output.tractogram,
         dseg=ancient("sub-{subject}/anat/sub-{subject}_desc-{targets}_dseg.nii.gz"),
     output:
         assignments=(
-            "sub-{subject}/tracts/mask_sweep/{mask_source}/"
+            "sub-{subject}/qc/mask_sweep/{mask_source}/"
             "sub-{subject}_hemi-{hemi}_label-{seed}_thr-{thr_tag}_desc-{targets}_method-mrtrix_assignments.txt"
         ),
     log:
@@ -390,47 +389,46 @@ rule sweep_targets_assignments:
         tck2connectome -nthreads {threads} -quiet -force \
           -assignment_radial_search 2 \
           -out_assignments "{output.assignments}" \
-          "{input.tck}" "{input.dseg}" "$tmpmat" \
+          "{input.tractogram}" "{input.dseg}" "$tmpmat" \
           &> "{log}"
         """
-
 
 # -----------------------------
 # Voxelwise aggregation
 # -----------------------------
 
-rule sweep_voxelwise_seed_to_targets_matrix:
+rule sweep_voxelwise_connectivity:
     input:
-        seed_tck=rules.sweep_filter_seed_tck.output.seed_tck,
-        seed_weights=rules.sweep_filter_seed_tck.output.seed_weights,
+        tractogram=rules.sweep_filter_tractogram.output.tractogram,
+        sift2_weights=rules.sweep_filter_tractogram.output.sift2_weights,
         seed_mask=rules.sweep_binarize_seed.output.seed_mask,
         assignments=rules.sweep_targets_assignments.output.assignments,
-        targets_nii=ancient("sub-{subject}/anat/sub-{subject}_desc-{targets}_dseg.nii.gz"),
+        targets_dseg=ancient("sub-{subject}/anat/sub-{subject}_desc-{targets}_dseg.nii.gz"),
     output:
-        weighted=(
+        connectivity_matrix=(
             "sub-{subject}/tracts/mask_sweep/{mask_source}/"
-            "sub-{subject}_hemi-{hemi}_label-{seed}_thr-{thr_tag}_desc-{targets}_sift2_conn.csv"
+            "sub-{subject}_hemi-{hemi}_label-{seed}_thr-{thr_tag}_desc-{targets}_connectivity_matrix.csv"
         ),
-        voxel_index=(
-            "sub-{subject}/tracts/mask_sweep/{mask_source}/"
+        seed_voxel_index=(
+            "sub-{subject}/qc/mask_sweep/{mask_source}/"
             "sub-{subject}_hemi-{hemi}_label-{seed}_thr-{thr_tag}_desc-{targets}_seed_voxel_index.csv"
         ),
-        qc=(
-            "sub-{subject}/tracts/mask_sweep/{mask_source}/qc/"
-            "sub-{subject}_hemi-{hemi}_label-{seed}_thr-{thr_tag}_desc-{targets}_voxelagg_qc.json"
+        qc_metrics=(
+            "sub-{subject}/qc/mask_sweep/{mask_source}/"
+            "sub-{subject}_hemi-{hemi}_label-{seed}_thr-{thr_tag}_desc-{targets}_connectivity_qc.json"
         ),
-        counts=temp(
+        global_target_counts=temp(
             config["tmp_dir"]
-            + "/sub-{subject}/tracts/mask_sweep/{mask_source}/"
-            + "sub-{subject}_hemi-{hemi}_label-{seed}_thr-{thr_tag}_desc-{targets}_conn_voxelwise_global_counts.csv"
+            + "/sub-{subject}/qc/mask_sweep/{mask_source}/"
+            + "sub-{subject}_hemi-{hemi}_label-{seed}_thr-{thr_tag}_desc-{targets}_global_target_counts.csv"
         ),
     log:
-        "logs/sub-{subject}/mask_sweep/{mask_source}/sub-{subject}_hemi-{hemi}_label-{seed}_thr-{thr_tag}_desc-{targets}_voxelagg.log",
+        "logs/sub-{subject}/mask_sweep/{mask_source}/sub-{subject}_hemi-{hemi}_label-{seed}_thr-{thr_tag}_desc-{targets}_voxelwise_connectivity.log",
     benchmark:
-        "benchmarks/sub-{subject}/mask_sweep/{mask_source}/sub-{subject}_hemi-{hemi}_label-{seed}_thr-{thr_tag}_desc-{targets}_voxelagg.tsv",
+        "benchmarks/sub-{subject}/mask_sweep/{mask_source}/sub-{subject}_hemi-{hemi}_label-{seed}_thr-{thr_tag}_desc-{targets}_voxelwise_connectivity.tsv",
     params:
         script=lambda wc: VOXEL_AGG_SCRIPT,
-        header=lambda wc: ",".join(config["targets"][wc.targets]["labels"]),
+        target_labels=lambda wc: ",".join(config["targets"][wc.targets]["labels"]),
     threads: lambda wc: config.get("mrtrix", {}).get("voxelagg_threads", 4)
     resources:
         mem_mb=16000,
@@ -440,21 +438,22 @@ rule sweep_voxelwise_seed_to_targets_matrix:
     shell:
         r"""
         set -euo pipefail
-        mkdir -p "$(dirname "{output.weighted}")"
-        mkdir -p "$(dirname "{output.counts}")"
-        mkdir -p "$(dirname "{output.qc}")"
+        mkdir -p "$(dirname "{output.connectivity_matrix}")"
+        mkdir -p "$(dirname "{output.seed_voxel_index}")"
+        mkdir -p "$(dirname "{output.qc_metrics}")"
+        mkdir -p "$(dirname "{output.global_target_counts}")"
         mkdir -p "$(dirname "{log}")"
 
         python "{params.script}" \
-          --seed-tck "{input.seed_tck}" \
-          --seed-weights "{input.seed_weights}" \
+          --seed-tck "{input.tractogram}" \
+          --seed-weights "{input.sift2_weights}" \
           --seed-mask "{input.seed_mask}" \
           --assignments "{input.assignments}" \
-          --targets-nii "{input.targets_nii}" \
-          --header "{params.header}" \
-          --out-weighted "{output.weighted}" \
-          --out-counts "{output.counts}" \
-          --out-voxel-index "{output.voxel_index}" \
-          --out-qc "{output.qc}" \
+          --targets-nii "{input.targets_dseg}" \
+          --header "{params.target_labels}" \
+          --out-weighted "{output.connectivity_matrix}" \
+          --out-counts "{output.global_target_counts}" \
+          --out-voxel-index "{output.seed_voxel_index}" \
+          --out-qc "{output.qc_metrics}" \
           &> "{log}"
         """

@@ -186,7 +186,7 @@ def get_subj_global_conn_sift2():
                         hemi="{hemi}",
                         desc="{targets}",
                         label="{seed}",
-                        suffix="sift2_conn.csv",
+                        suffix="connectivity_matrix.csv",
                         **subj_wildcards,
                     ),
                     seed=seed,
@@ -207,12 +207,12 @@ def get_mask_sweep_outputs():
 
     subjects = sorted(set(inputs.input_zip_lists["T1w"]["subject"]))
     mask_sources = config["mask_sweep"].get("mask_sources", ["native"])
-    thresholds = config["mask_sweep"]["thresholds"]
+    thresholds = config["mask_sweep"].get("thresholds", [])
     thr_tags = [str(t).replace(".", "p") for t in thresholds]
 
     return expand(
         "sub-{subject}/tracts/mask_sweep/{mask_source}/"
-        "sub-{subject}_hemi-{hemi}_label-{seed}_thr-{thr_tag}_desc-{targets}_sift2_conn.csv",
+        "sub-{subject}_hemi-{hemi}_label-{seed}_thr-{thr_tag}_desc-{targets}_connectivity_matrix.csv",
         subject=subjects,
         mask_source=mask_sources,
         hemi=["L", "R"],
@@ -233,7 +233,8 @@ rule all_nlincrop_conn:
 
 rule all:
     input:
-        get_subj_global_conn_sift2()
+        get_subj_global_conn_sift2(),
+        get_mask_sweep_outputs()
     default_target: True
 
 
@@ -258,7 +259,11 @@ if not config["anat_only"]:
     include: "rules/reg_dwi_to_t1.smk"
     include: "rules/mrtrix.smk"
     include: "rules/bedpost.smk"
+    include: "rules/wb_prep.smk"
     include: "rules/mrtrix_wb.smk"
+    include: "rules/mrtrix_roi_enrichment.smk"
+    include: "rules/sift2.smk"
+    include: "rules/connectivity.smk"
     include: "rules/mask_sweep.smk"
 
     if not config.get("disable_voxelwise_conn", False):
