@@ -145,10 +145,10 @@ rule final_tractogram:
         wb=rules.wb_tckgen_merge.output.tck,
         roi=rules.roi_tckgen_merge.output.tck
     output:
-        tck=bids(
+        tck=temp(bids(
             root=root, datatype="tracts", method="mrtrix",
             desc="final", suffix="tractography.tck", **subj_wildcards
-        ),
+        )),
         tckinfo="sub-{subject}/qc/sub-{subject}_desc-final_method-mrtrix_tractography_tckinfo.txt",
     log:
         "logs/sub-{subject}/tracts/sub-{subject}_desc-final_tractogram.log",

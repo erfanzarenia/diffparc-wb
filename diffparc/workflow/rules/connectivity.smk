@@ -33,8 +33,8 @@ rule filter_tractogram:
             **subj_wildcards,
         ),
     output:
-        tractogram=temp(bids(
-            root=config["tmp_dir"],
+        tractogram=bids(
+            root=root,
             datatype="tracts",
             method="mrtrix",
             desc="seedfiltered",
@@ -42,9 +42,9 @@ rule filter_tractogram:
             label="{seed}",
             suffix="tractography.tck",
             **subj_wildcards,
-        )),
-        sift2_weights=temp(bids(
-            root=config["tmp_dir"],
+        ),
+        sift2_weights=bids(
+            root=root,
             datatype="tracts",
             method="mrtrix",
             desc="seedfiltered",
@@ -52,7 +52,7 @@ rule filter_tractogram:
             label="{seed}",
             suffix="sift2_weights.txt",
             **subj_wildcards,
-        )),
+        ),
         tractogram_info=(
             "sub-{subject}/qc/connectivity/"
             "sub-{subject}_hemi-{hemi}_label-{seed}"
