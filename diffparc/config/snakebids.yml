@@ -919,20 +919,35 @@ roi_enrichment:
   seeds_per_voxel: 1000
 
 resources:
-  act_5ttgen:
+  dwi2response_msmt:
+    threads: 2
+    mem_mb: 4000
+    time_min: 15
+
+  dwi2fod_msmt:
     threads: 8
-    mem_mb: 32000
+    mem_mb: 4000
+    time_min: 30
+
+  mtnormalise:
+    threads: 2
+    mem_mb: 2000
+    time_min: 10
+
+  act_5ttgen:
+    threads: 4
+    mem_mb: 16000
     time_min: 180
 
   act_gmwmi:
     threads: 2
-    mem_mb: 8000
+    mem_mb: 4000
     time_min: 30
 
   wb_tckgen_chunk:
     threads: 6
-    mem_mb: 40000
-    time_min: 1200
+    mem_mb: 4000
+    time_min: 600
 
   wb_tckgen_merge:
     threads: 2
@@ -941,8 +956,8 @@ resources:
 
   roi_tckgen:
     threads: 4
-    mem_mb: 24000
-    time_min: 120
+    mem_mb: 4000
+    time_min: 60
 
   roi_tckgen_merge:
     threads: 2
@@ -957,31 +972,31 @@ resources:
   sift2:
     threads: 10
     mem_mb: 40000
-    time_min: 300
+    time_min: 120
 
   filter_tractogram:
-    threads: 4
-    mem_mb: 16000
-    time_min: 90
+    threads: 2
+    mem_mb: 4000
+    time_min: 30
 
   targets_assignments:
-    threads: 4
-    mem_mb: 16000
-    time_min: 30
+    threads: 2
+    mem_mb: 4000
+    time_min: 10
 
   voxelwise_connectivity:
     threads: 4
-    mem_mb: 16000
-    time_min: 90
+    mem_mb: 8000
+    time_min: 30
 
 mask_sweep:
   enabled: true
   thresholds:
     - 0.05
     - 0.1
-#    - 0.15
-#    - 0.2
-#    - 0.25
+    - 0.15
+    - 0.2
+    - 0.25
   mask_sources:
     - native
     - brainsteminjected

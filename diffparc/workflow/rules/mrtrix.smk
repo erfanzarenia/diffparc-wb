@@ -1,3 +1,6 @@
+def res(rule, key, default):
+    return config.get("resources", {}).get(rule, {}).get(key, default)
+
 rule nii2mif:
     input:
         dwi=bids(
@@ -53,9 +56,10 @@ rule nii2mif:
                 **subj_wildcards,
             )
         ),
-    threads: 4
+    threads: lambda wc: res("nii2mif", "threads", 2)
     resources:
-        mem_mb=16000,
+        mem_mb=lambda wc: res("nii2mif", "mem_mb", 4000),
+        time=lambda wc: res("nii2mif", "time_min", 10)
     group:
         "subj"
     container:
@@ -108,9 +112,12 @@ rule dwi2response_msmt:
             suffix="response.txt",
             **subj_wildcards,
         ),
-    threads: 8
+    benchmark:
+        "benchmarks/sub-{subject}/dwi/sub-{subject}_alg-msmt_desc-dwi2response.tsv"
+    threads: lambda wc: res("dwi2response_msmt", "threads", 8)
     resources:
-        mem_mb=32000,
+        mem_mb=lambda wc: res("dwi2response_msmt", "mem_mb", 32000),
+        time=lambda wc: res("dwi2response_msmt", "time_min", 180)
     group:
         "subj"
     container:
@@ -152,9 +159,12 @@ rule dwi2fod_msmt:
             suffix="fod.mif",
             **subj_wildcards,
         ),
-    threads: 8
+    benchmark:
+        "benchmarks/sub-{subject}/dwi/sub-{subject}_alg-msmt_desc-dwi2fod.tsv"
+    threads: lambda wc: res("dwi2fod_msmt", "threads", 8)
     resources:
-        mem_mb=32000,
+        mem_mb=lambda wc: res("dwi2fod_msmt", "mem_mb", 32000),
+        time=lambda wc: res("dwi2fod_msmt", "time_min", 240)
     group:
         "subj"
     container:
@@ -196,9 +206,12 @@ rule mtnormalise:
             suffix="csf_fod.mif",
             **subj_wildcards,
         ),
-    threads: 8
+    benchmark:
+        "benchmarks/sub-{subject}/dwi/sub-{subject}_alg-msmt_desc-mtnormalise.tsv"
+    threads: lambda wc: res("mtnormalise", "threads", 8)
     resources:
-        mem_mb=32000,
+        mem_mb=lambda wc: res("mtnormalise", "mem_mb", 32000),
+        time=lambda wc: res("mtnormalise", "time_min", 180)
     group:
         "subj"
     container:
