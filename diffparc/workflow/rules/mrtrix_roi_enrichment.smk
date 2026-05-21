@@ -97,6 +97,8 @@ rule roi_tckgen_merge:
         tckinfo="sub-{subject}/qc/sub-{subject}_desc-roi_method-mrtrix_tractography_merged_tckinfo.txt",
     log:
         "logs/sub-{subject}/tracts/sub-{subject}_desc-roi_tckgen_merge.log",
+    benchmark:
+        "benchmarks/sub-{subject}/tracts/sub-{subject}_roi_tckgen_merge.tsv"
     params:
         roi_on=lambda wc: 1 if roi_enabled() else 0
     threads: lambda wc: res("roi_tckgen_merge", "threads", 2)
@@ -152,6 +154,8 @@ rule final_tractogram:
         tckinfo="sub-{subject}/qc/sub-{subject}_desc-final_method-mrtrix_tractography_tckinfo.txt",
     log:
         "logs/sub-{subject}/tracts/sub-{subject}_desc-final_tractogram.log",
+    benchmark:
+        "benchmarks/sub-{subject}/tracts/sub-{subject}_desc-final_tractogram.tsv"
     threads: lambda wc: res("tractogram_for_sift2", "threads", 2)
     resources:
         mem_mb=lambda wc: res("final_tractogram", "mem_mb", 8000),

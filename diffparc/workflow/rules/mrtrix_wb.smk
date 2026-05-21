@@ -91,10 +91,12 @@ rule wb_tckgen_merge:
         tckinfo="sub-{subject}/qc/sub-{subject}_desc-wb_method-mrtrix_tractography_tckinfo.txt",
     log:
         "logs/sub-{subject}/tracts/sub-{subject}_desc-wb_tckgen_merge.log",
+    benchmark:
+        "benchmarks/sub-{subject}/tracts/sub-{subject}_desc-wb_tckgen_merge.tsv"
     threads: lambda wc: res("wb_tckgen_merge", "threads", 2)
     resources:
-        mem_mb=lambda wc: res("wb_tckgen_merge", "mem_mb", 8000),
-        time=lambda wc: res("wb_tckgen_merge", "time_min", 60)
+        mem_mb=lambda wc: res("wb_tckgen_merge", "mem_mb", 4000),
+        time=lambda wc: res("wb_tckgen_merge", "time_min", 30)
     container:
         config["singularity"]["diffparc"]
     group:

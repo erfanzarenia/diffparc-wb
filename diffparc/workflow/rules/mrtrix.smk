@@ -114,10 +114,10 @@ rule dwi2response_msmt:
         ),
     benchmark:
         "benchmarks/sub-{subject}/dwi/sub-{subject}_alg-msmt_desc-dwi2response.tsv"
-    threads: lambda wc: res("dwi2response_msmt", "threads", 8)
+    threads: lambda wc: res("dwi2response_msmt", "threads", 2)
     resources:
-        mem_mb=lambda wc: res("dwi2response_msmt", "mem_mb", 32000),
-        time=lambda wc: res("dwi2response_msmt", "time_min", 180)
+        mem_mb=lambda wc: res("dwi2response_msmt", "mem_mb", 4000),
+        time=lambda wc: res("dwi2response_msmt", "time_min", 10)
     group:
         "subj"
     container:
@@ -208,10 +208,10 @@ rule mtnormalise:
         ),
     benchmark:
         "benchmarks/sub-{subject}/dwi/sub-{subject}_alg-msmt_desc-mtnormalise.tsv"
-    threads: lambda wc: res("mtnormalise", "threads", 8)
+    threads: lambda wc: res("mtnormalise", "threads", 2)
     resources:
-        mem_mb=lambda wc: res("mtnormalise", "mem_mb", 32000),
-        time=lambda wc: res("mtnormalise", "time_min", 180)
+        mem_mb=lambda wc: res("mtnormalise", "mem_mb", 4000),
+        time=lambda wc: res("mtnormalise", "time_min", 10)
     group:
         "subj"
     container:

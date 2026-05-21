@@ -919,74 +919,49 @@ roi_enrichment:
   seeds_per_voxel: 1000
 
 resources:
-  dwi2response_msmt:
-    threads: 2
-    mem_mb: 4000
-    time_min: 15
-
   dwi2fod_msmt:
-    threads: 8
-    mem_mb: 4000
-    time_min: 30
-
-  mtnormalise:
-    threads: 2
-    mem_mb: 2000
-    time_min: 10
-
+    threads: 12
+    mem_mb: 8000
+    time_min: 15
+ 
   act_5ttgen:
     threads: 4
-    mem_mb: 16000
-    time_min: 180
-
-  act_gmwmi:
-    threads: 2
-    mem_mb: 4000
-    time_min: 30
-
+    mem_mb: 16000      
+    time_min: 120
+  
   wb_tckgen_chunk:
-    threads: 6
-    mem_mb: 4000
-    time_min: 600
-
+    threads: 16
+    mem_mb: 8000    
+    time_min: 360
+ 
   wb_tckgen_merge:
     threads: 2
-    mem_mb: 8000
-    time_min: 60
-
+    mem_mb: 16000       
+    time_min: 30
+ 
   roi_tckgen:
-    threads: 4
-    mem_mb: 4000
-    time_min: 60
-
+    threads: 8
+    mem_mb: 4000       
+    time_min: 15
+ 
   roi_tckgen_merge:
     threads: 2
     mem_mb: 8000
-    time_min: 30
-
+    time_min: 10
+  
   final_tractogram:
     threads: 2
-    mem_mb: 8000
-    time_min: 90
-
-  sift2:
-    threads: 10
-    mem_mb: 40000
-    time_min: 120
-
-  filter_tractogram:
-    threads: 2
-    mem_mb: 4000
+    mem_mb: 16000      
     time_min: 30
-
-  targets_assignments:
+    
+  sift2:
+    threads: 16
+    mem_mb: 64000       
+    time_min: 60
+    
+  filter_tractogram:  
     threads: 2
-    mem_mb: 4000
-    time_min: 10
-
-  voxelwise_connectivity:
-    threads: 4
-    mem_mb: 8000
+    mem_mb: 16000     
     time_min: 30
 
 mask_sweep:

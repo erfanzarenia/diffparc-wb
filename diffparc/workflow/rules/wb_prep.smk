@@ -81,10 +81,10 @@ rule act_gmwmi:
         gmwmi="sub-{subject}/anat/sub-{subject}_desc-gmwmi_method-mrtrix.mif",
     log:
         "logs/sub-{subject}/act_gmwmi.log",
-    threads: lambda wc: res("act_gmwmi", "threads", 2)
+    threads: lambda wc: res("act_gmwmi", "threads", 1)
     resources:
-        mem_mb=lambda wc: res("act_gmwmi", "mem_mb", 8000),
-        time=lambda wc: res("act_gmwmi", "time_min", 30)
+        mem_mb=lambda wc: res("act_gmwmi", "mem_mb", 4000),
+        time=lambda wc: res("act_gmwmi", "time_min", 10)
     container:
         config["singularity"]["diffparc"]
     group:

@@ -70,10 +70,10 @@ rule filter_tractogram:
             "sub-{subject}_hemi-{hemi}_label-{seed}"
             "_desc-seedfiltered_filter_tractogram.tsv"
         ),
-    threads: lambda wc: res("filter_tractogram", "threads", 4)
+    threads: lambda wc: res("filter_tractogram", "threads", 2)
     resources:
         mem_mb=lambda wc: res("filter_tractogram", "mem_mb", 16000),
-        time=lambda wc: res("filter_tractogram", "time_min", 90)
+        time=lambda wc: res("filter_tractogram", "time_min", 30)
     group:
         "subj"
     container:
@@ -122,10 +122,10 @@ rule targets_assignments:
             "sub-{subject}_hemi-{hemi}_label-{seed}_desc-{targets}"
             "_targets_assignments.tsv"
         ),
-    threads: lambda wc: res("targets_assignments", "threads", 4)
+    threads: lambda wc: res("targets_assignments", "threads", 2)
     resources:
-        mem_mb=lambda wc: res("targets_assignments", "mem_mb", 16000),
-        time=lambda wc: res("targets_assignments", "time_min", 30)
+        mem_mb=lambda wc: res("targets_assignments", "mem_mb", 4000),
+        time=lambda wc: res("targets_assignments", "time_min", 5)
     container:
         config["singularity"]["diffparc"]
     group:
@@ -206,10 +206,10 @@ rule voxelwise_connectivity:
     params:
         script=lambda wc: VOXEL_AGG_SCRIPT,
         target_labels=lambda wc: ",".join(config["targets"][wc.targets]["labels"]),
-    threads: lambda wc: res("voxelwise_connectivity", "threads", 4)
+    threads: lambda wc: res("voxelwise_connectivity", "threads", 2)
     resources:
-        mem_mb=lambda wc: res("voxelwise_connectivity", "mem_mb", 16000),
-        time=lambda wc: res("voxelwise_connectivity", "time_min", 90)
+        mem_mb=lambda wc: res("voxelwise_connectivity", "mem_mb", 4000),
+        time=lambda wc: res("voxelwise_connectivity", "time_min", 15)
     container:
         config["singularity"]["diffparc"]
     group:
