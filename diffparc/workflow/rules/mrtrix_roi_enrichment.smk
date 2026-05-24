@@ -103,8 +103,8 @@ rule roi_tckgen_merge:
         roi_on=lambda wc: 1 if roi_enabled() else 0
     threads: lambda wc: res("roi_tckgen_merge", "threads", 2)
     resources:
-        mem_mb=lambda wc: res("roi_tckgen_merge", "mem_mb", 8000),
-        time=lambda wc: res("roi_tckgen_merge", "time_min", 30)
+        mem_mb=lambda wc: res("roi_tckgen_merge", "mem_mb", 1000),
+        time=lambda wc: res("roi_tckgen_merge", "time_min", 10)
     container:
         config["singularity"]["diffparc"]
     group:
@@ -158,8 +158,8 @@ rule final_tractogram:
         "benchmarks/sub-{subject}/tracts/sub-{subject}_desc-final_tractogram.tsv"
     threads: lambda wc: res("tractogram_for_sift2", "threads", 2)
     resources:
-        mem_mb=lambda wc: res("final_tractogram", "mem_mb", 8000),
-        time=lambda wc: res("final_tractogram", "time_min", 90)
+        mem_mb=lambda wc: res("final_tractogram", "mem_mb", 2000),
+        time=lambda wc: res("final_tractogram", "time_min", 30)
     container: config["singularity"]["diffparc"]
     group:
         "subj"

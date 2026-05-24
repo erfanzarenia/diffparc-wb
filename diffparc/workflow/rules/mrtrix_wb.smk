@@ -95,7 +95,7 @@ rule wb_tckgen_merge:
         "benchmarks/sub-{subject}/tracts/sub-{subject}_desc-wb_tckgen_merge.tsv"
     threads: lambda wc: res("wb_tckgen_merge", "threads", 2)
     resources:
-        mem_mb=lambda wc: res("wb_tckgen_merge", "mem_mb", 4000),
+        mem_mb=lambda wc: res("wb_tckgen_merge", "mem_mb", 2000),
         time=lambda wc: res("wb_tckgen_merge", "time_min", 30)
     container:
         config["singularity"]["diffparc"]

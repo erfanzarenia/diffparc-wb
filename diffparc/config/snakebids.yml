@@ -4,7 +4,7 @@
 #enable printing debug statements during parsing -- disable if generating dag visualization
 debug: True
 root: ''
-tmp_dir: '/tmp'
+tmp_dir: '/temp'
 
 # boilerplate above
 
@@ -916,7 +916,7 @@ wb_chunk_streamlines: 50000000
 
 roi_enrichment:
   enabled: True
-  seeds_per_voxel: 1000
+  seeds_per_voxel: 3000
 
 resources:
   dwi2fod_msmt:
@@ -934,25 +934,10 @@ resources:
     mem_mb: 8000    
     time_min: 360
  
-  wb_tckgen_merge:
-    threads: 2
-    mem_mb: 16000       
-    time_min: 30
- 
   roi_tckgen:
     threads: 8
     mem_mb: 4000       
     time_min: 15
- 
-  roi_tckgen_merge:
-    threads: 2
-    mem_mb: 8000
-    time_min: 10
-  
-  final_tractogram:
-    threads: 2
-    mem_mb: 16000      
-    time_min: 30
     
   sift2:
     threads: 16
