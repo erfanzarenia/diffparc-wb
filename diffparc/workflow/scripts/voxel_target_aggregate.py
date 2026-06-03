@@ -151,6 +151,14 @@ def main():
     ap.add_argument("--out-voxel-index", required=True)
     ap.add_argument("--out-qc", required=False, help="Output QC summary as JSON")
 
+    ap.add_argument(
+        "--keep-both-endpoints-in-seed",
+        action="store_true",
+        help=(
+            "Keep streamlines whose BOTH endpoints fall inside the seed mask. "
+        ),
+    )
+
     args = ap.parse_args()
 
     target_labels = parse_header_labels(args.header)
@@ -242,8 +250,7 @@ def main():
     both_in_seed = f_in_seed & l_in_seed
     if np.any(both_in_seed):
         log(
-            f"WARNING: {both_in_seed.sum()} streamlines had both endpoints inside seed. "
-            "Using first endpoint."
+            f"WARNING: {both_in_seed.sum()} streamlines had both endpoints inside seed."
         )
 
     seed_ijk = np.full((n_sl, 3), -1, dtype=np.int64)
@@ -258,6 +265,9 @@ def main():
         (target_node > 0) &
         (target_node <= n_targets)
     )
+
+    if not args.keep_both_endpoints_in_seed:
+        valid = valid & ~both_in_seed
 
     tgt_col = target_node[valid] - 1
     selected_seed_ijk = seed_ijk[valid]
@@ -339,6 +349,7 @@ def main():
             "endpoint_in_seed_first": int(f_in_seed.sum()),
             "endpoint_in_seed_last": int(l_in_seed.sum()),
             "both_endpoints_in_seed": int(both_in_seed.sum()),
+            "drop_both_endpoints_in_seed": bool(not args.keep_both_endpoints_in_seed),
             "valid_streamlines_used_before_row_mapping": int(valid.sum()),
             "valid_streamlines_mapped_to_seed_rows": int(ok.sum()),
             "dropped_after_valid_check": int(n_sl - valid.sum()),
