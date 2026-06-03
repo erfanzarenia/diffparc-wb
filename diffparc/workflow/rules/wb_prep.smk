@@ -33,7 +33,7 @@ rule binarize_trim_subject_seed:
         "subj"
     shell:
         "c3d -int 0 {input.seed} -threshold {params.threshold} inf 1 0 "
-        "-resample-mm {params.resample_res} -trim 0vox "
+        "-dilate 1 3x3x3vox -resample-mm {params.resample_res} -trim 0vox "
         "-type uchar -o {output.seed_thr} &> {log}"
 
 

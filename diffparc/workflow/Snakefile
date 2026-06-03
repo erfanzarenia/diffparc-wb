@@ -211,12 +211,12 @@ def get_mask_sweep_outputs():
     thr_tags = [str(t).replace(".", "p") for t in thresholds]
 
     return expand(
-        "sub-{subject}/tracts/mask_sweep/{mask_source}/"
+        "sub-{subject}/tracts/mask_sweep/{seed}/{mask_source}/"
         "sub-{subject}_hemi-{hemi}_label-{seed}_thr-{thr_tag}_desc-{targets}_connectivity_matrix.csv",
         subject=subjects,
         mask_source=mask_sources,
         hemi=["L", "R"],
-        seed=["vtasnc"],
+        seed=["vtasnc", "snc", "vtapbp"],
         targets=["Yeo7TianS3"],
         thr_tag=thr_tags,
     )

@@ -4,7 +4,7 @@
 #enable printing debug statements during parsing -- disable if generating dag visualization
 debug: True
 root: ''
-tmp_dir: '/temp'
+tmp_dir: '/tmp'
 
 # boilerplate above
 
@@ -784,6 +784,49 @@ seeds:
 ###    seeds_per_voxel:
 ###      - 5000
     normalize_percentile: 95 #normalize connectivity to each target before maxprob
+    
+  # --- experimental mask_sweep split midbrain seeds (additive) --------------
+  # snc       = SNc only             (nigrostriatal)
+  # vtapbp    = VTA + PBP merged     (mesolimbic A10; SNr excluded)
+  # vtasncpbp = SNc + VTA + PBP      (full DA midbrain; SNr excluded)
+  # The template_probseg files are generated once by workflow/scripts/generate_probsegs.py
+  snc:
+    template_probseg: resources/tpl-MNI152NLin2009cAsym/CIT168_prob/snc_hemi-{hemi}_probseg.nii.gz
+    probseg_threshold: 0.3
+    probseg_resample: '200%'
+    use_synthseg: False
+    targets:
+       - Yeo7TianS3
+    fwhm_conn: 2mm
+    streamline_threshold_percent: 4
+    seeds_per_vertex:
+      - 250
+    normalize_percentile: 95
+  vtapbp:
+    template_probseg: resources/tpl-MNI152NLin2009cAsym/CIT168_prob/vtapbp_hemi-{hemi}_probseg.nii.gz
+    probseg_threshold: 0.3
+    probseg_resample: '200%'
+    use_synthseg: False
+    targets:
+       - Yeo7TianS3
+    fwhm_conn: 2mm
+    streamline_threshold_percent: 4
+    seeds_per_vertex:
+      - 250
+    normalize_percentile: 95
+  vtasncpbp:
+    template_probseg: resources/tpl-MNI152NLin2009cAsym/CIT168_prob/vtasncpbp_hemi-{hemi}_probseg.nii.gz
+    probseg_threshold: 0.3
+    probseg_resample: '200%'
+    use_synthseg: False
+    targets:
+       - Yeo7TianS3
+    fwhm_conn: 2mm
+    streamline_threshold_percent: 4
+    seeds_per_vertex:
+      - 250
+    normalize_percentile: 95
+    
 aux_dseg:
   synthseg:
     label_tsv: 'resources/synthseg_simple_labels.tsv'
@@ -955,8 +998,9 @@ mask_sweep:
     - 0.05
     - 0.1
     - 0.15
-    - 0.2
-    - 0.25
+#    - 0.2
+#    - 0.25
+#    - 0.30
   mask_sources:
     - native
     - brainsteminjected
