@@ -12,7 +12,7 @@ SUBJECTS = sorted(set(inputs.input_zip_lists["T1w"]["subject"]))
 
 VOXEL_AGG_SCRIPT = os.path.join(workflow.basedir, "scripts", "voxel_target_aggregate.py")
 
-SWEEP_SEEDS = ["vtasnc", "snc", "vtapbp", "vtasncpbp"]
+SWEEP_SEEDS = ["vtasnc", "snc", "vtapbp"]
 HEMIS = ["L", "R"]
 TARGETS = ["Yeo7TianS3"]
 
@@ -52,21 +52,39 @@ def template_seed_probseg_path(wc):
     return os.path.join(workflow.basedir, "..", p)
 
 
-def sweep_seed_probseg(wc):
-    if wc.mask_source == "native":
-        return (
-            f"sub-{wc.subject}/anat/"
-            f"sub-{wc.subject}_hemi-{wc.hemi}_label-{wc.seed}_probseg.nii.gz"
-        )
+# snc and vtapbp touch at the winner-take-all boundary in template space, then
+# are warped to subject space INDEPENDENTLY with linear interpolation, which
+# smears each probseg ~1 voxel past its edge and makes the thresholded masks
+# overlap. Re-imposing the argmax in subject space (keep snc where it out-probs
+# vtapbp, and vice-versa) restores disjointness. Maps each split seed to its
+# counterpart; seeds absent here (vtasnc, vtasncpbp) get no argmax.
+SWEEP_ARGMAX_PARTNER = {"snc": "vtapbp", "vtapbp": "snc"}
 
-    if wc.mask_source == "brainsteminjected":
+
+def _seed_probseg_path(subject, hemi, seed, mask_source):
+    if mask_source == "native":
         return (
-            f"sub-{wc.subject}/anat/mask_sweep/{wc.seed}/brainsteminjected/"
-            f"sub-{wc.subject}_hemi-{wc.hemi}_label-{wc.seed}"
+            f"sub-{subject}/anat/"
+            f"sub-{subject}_hemi-{hemi}_label-{seed}_probseg.nii.gz"
+        )
+    if mask_source == "brainsteminjected":
+        return (
+            f"sub-{subject}/anat/mask_sweep/{seed}/brainsteminjected/"
+            f"sub-{subject}_hemi-{hemi}_label-{seed}"
             f"_desc-brainsteminjected_probseg.nii.gz"
         )
+    raise ValueError(f"Unknown mask_source: {mask_source}")
 
-    raise ValueError(f"Unknown mask_source: {wc.mask_source}")
+
+def sweep_seed_probseg(wc):
+    return _seed_probseg_path(wc.subject, wc.hemi, wc.seed, wc.mask_source)
+
+
+def sweep_partner_probseg(wc):
+    # Counterpart probseg for the subject-space argmax. For seeds without a
+    # partner, return the seed's own probseg (placeholder; unused in the shell).
+    partner = SWEEP_ARGMAX_PARTNER.get(wc.seed, wc.seed)
+    return _seed_probseg_path(wc.subject, wc.hemi, partner, wc.mask_source)
 
 
 rule all_mask_sweep:
@@ -264,6 +282,7 @@ rule sweep_warp_seed_with_brainstem_proxy:
 rule sweep_binarize_seed:
     input:
         seed_prob=sweep_seed_probseg,
+        partner_prob=sweep_partner_probseg,
     output:
         seed_mask=(
             "sub-{subject}/anat/mask_sweep/{seed}/{mask_source}/"
@@ -276,6 +295,7 @@ rule sweep_binarize_seed:
     params:
         threshold=lambda wc: wc.thr_tag.replace("p", "."),
         resample_res=lambda wc: config["resample_seed_res"],
+        argmax=lambda wc: 1 if wc.seed in SWEEP_ARGMAX_PARTNER else 0,
     threads: 1
     resources:
         mem_mb=4000,
@@ -288,13 +308,40 @@ rule sweep_binarize_seed:
         mkdir -p "$(dirname "{output.seed_mask}")"
         mkdir -p "$(dirname "{log}")"
 
-        c3d -int 0 "{input.seed_prob}" \
-          -threshold {params.threshold} inf 1 0 \
-          -resample-mm {params.resample_res} \
-          -trim 0vox \
-          -type uchar \
-          -o "{output.seed_mask}" \
-          &> "{log}"
+        if [ "{params.argmax}" -eq 1 ]; then
+          # Subject-space winner-take-all. The split seeds touch in template space
+          # and are warped here independently with linear interpolation, which
+          # smears each probseg past its edge so the thresholded masks overlap.
+          # Fix: keep a voxel only where this seed's prob is strictly greater than
+          # its partner's. Strict-greater for both seeds makes overlap impossible.
+          #
+          # Step 1: reslice partner onto the seed grid (c3d order: REF MOVING),
+          #         then win = (seed - partner) > 0.
+          win="$(mktemp --suffix=.nii.gz)"
+          trap 'rm -f "$win"' EXIT
+          c3d -int 0 "{input.seed_prob}" "{input.partner_prob}" -reslice-identity \
+            "{input.seed_prob}" -scale -1 -add \
+            -threshold 0 inf 0 1 \
+            -o "$win" \
+            &> "{log}"
+
+          # Step 2: thresholded seed AND win, then resample/trim as usual.
+          c3d -int 0 "{input.seed_prob}" -threshold {params.threshold} inf 1 0 \
+            "$win" -multiply \
+            -resample-mm {params.resample_res} \
+            -trim 0vox \
+            -type uchar \
+            -o "{output.seed_mask}" \
+            &>> "{log}"
+        else
+          c3d -int 0 "{input.seed_prob}" \
+            -threshold {params.threshold} inf 1 0 \
+            -resample-mm {params.resample_res} \
+            -trim 0vox \
+            -type uchar \
+            -o "{output.seed_mask}" \
+            &> "{log}"
+        fi
         """
 
 

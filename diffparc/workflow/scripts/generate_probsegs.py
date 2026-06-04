@@ -153,11 +153,16 @@ def main():
     pbp = pbp_img.get_fdata(dtype=np.float64)
     snr = snr_img.get_fdata(dtype=np.float64)
 
-    # Probability merges
+    # Probability merges.
+    # snc / vtapbp are RAW component probs here (no WTA). They overlap at the
+    # boundary on purpose: the winner-take-all is done once in subject space
+    # (sweep_binarize_seed) AFTER warping, so we never warp a sharp WTA edge with
+    # linear interpolation (which re-smears it). Masking to the union happens in
+    # the write loop below.
     a10 = np.clip(vta + pbp, 0.0, 1.0)               # mesolimbic complex
     da_all = np.clip(snc + vta + pbp, 0.0, 1.0)      # full DA midbrain
-    snc_ps = np.where(snc > a10, snc, 0.0)            # WTA split: SNc wins
-    vtapbp_ps = np.where(a10 >= snc, a10, 0.0)        # WTA split: A10 wins (ties)
+    snc_ps = snc                                      # raw P_SNc
+    vtapbp_ps = a10                                   # raw P_VTA + P_PBP
 
     seed_full = {"snc": snc_ps, "vtapbp": vtapbp_ps, "vtasncpbp": da_all}
 
@@ -200,7 +205,9 @@ def main():
                 % (out_path, int((data > 0).sum()),
                    float(data.max() if data.size else 0.0)))
 
-    # Sanity: snc U vtapbp must equal vtasncpbp (voxel sets), per hemi.
+    # Sanity: snc U vtapbp == vtasncpbp (voxel sets), per hemi. snc and vtapbp
+    # are raw components here so they OVERLAP at the boundary (expected); the WTA
+    # that makes them disjoint runs later in subject space (sweep_binarize_seed).
     for hemi in args.hemis:
         sel = union & hemi_side[hemi]
         s = (seed_full["snc"] * sel) > 0
@@ -210,8 +217,9 @@ def main():
             log("[warn] hemi-%s: (snc U vtapbp) != vtasncpbp voxel set "
                 "(unexpected; check merge logic)." % hemi)
         else:
-            log("[ok] hemi-%s: snc U vtapbp == vtasncpbp (%d voxels)."
-                % (hemi, int(c.sum())))
+            log("[ok] hemi-%s: snc U vtapbp == vtasncpbp (%d voxels); "
+                "snc/vtapbp overlap = %d (expected, resolved by subject-space WTA)."
+                % (hemi, int(c.sum()), int((s & v).sum())))
 
     log("[done] Generated %s hemi probsegs in %s"
         % ("/".join(OUTPUT_SEEDS), prob_dir))
