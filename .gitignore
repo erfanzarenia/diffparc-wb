@@ -14,3 +14,6 @@ diffparc/resources/apptainer/*
 !README.md
 .snakemake
 __pycache__
+diffparc/.DS_Store
+diffparc/resources/.DS_Store
+.DS_Store

@@ -216,7 +216,7 @@ def get_mask_sweep_outputs():
         subject=subjects,
         mask_source=mask_sources,
         hemi=["L", "R"],
-        seed=["vtasnc", "snc", "vtapbp"],
+        seed=["vtasnc", "snc", "vtapbp"], 
         targets=["Yeo7TianS3"],
         thr_tag=thr_tags,
     )

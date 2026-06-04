@@ -744,9 +744,10 @@ targets:
     label_list_txt: resources/tpl-MNI152NLin2009cAsym/Yeo_Tian/label_list_Yeo17_TianS3.txt
 
 
-select_seeds:  #TODO make this CLI arg
+select_seeds:
 ###  - striatum
-  - vtasnc
+#  - vtasnc
+  - vtasncpbp
 
 seeds:
 ###  striatum:

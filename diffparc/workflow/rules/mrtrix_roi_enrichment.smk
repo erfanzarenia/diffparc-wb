@@ -5,7 +5,7 @@ def res(rule, key, default):
 def roi_enabled():
     return config.get("roi_enrichment", {}).get("enabled", False)
 
-SEEDS = ["vtasnc"]
+SEEDS = ["vtasncpbp"]
 
 # -----------------------------
 # Optional ROI enrichment
