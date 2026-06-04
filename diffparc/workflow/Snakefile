@@ -23,6 +23,7 @@ config.setdefault("b0_bet_frac", 0.5)
 config.setdefault("show_parallel_eta", False)
 config.setdefault("in_prepdwi_dir", False)
 config.setdefault("in_snakedwi_dir", False)
+config.setdefault("dwi_biascorrect", True)
 config.setdefault("mask_sweep", {})
 config["mask_sweep"].setdefault("enabled", False)
 
@@ -216,7 +217,7 @@ def get_mask_sweep_outputs():
         subject=subjects,
         mask_source=mask_sources,
         hemi=["L", "R"],
-        seed=["vtasnc", "snc", "vtapbp"], 
+        seed=["vtasnc", "snc", "vtapbp", "vtasncpbp"],  # keep in sync with SWEEP_SEEDS in rules/mask_sweep.smk
         targets=["Yeo7TianS3"],
         thr_tag=thr_tags,
     )

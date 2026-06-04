@@ -1,6 +1,15 @@
 def res(rule, key, default):
     return config.get("resources", {}).get(rule, {}).get(key, default)
 
+
+def get_dwi_for_csd(wc):
+    # Bias-corrected DWI feeds response/FOD/tensor estimation when enabled
+    # (default True); otherwise the raw nii2mif output is used unchanged.
+    if config.get("dwi_biascorrect", True):
+        return rules.dwibiascorrect.output.dwi
+    return rules.nii2mif.output.dwi
+
+
 rule nii2mif:
     input:
         dwi=bids(
@@ -69,6 +78,62 @@ rule nii2mif:
         "mrconvert {input.mask} {output.mask} -nthreads {threads}"
 
 
+rule dwibiascorrect:
+    # ANTs N4 bias-field correction on the (eddy/topup-corrected) DWI, before
+    # MSMT-CSD. Operates on the .mif (gradient table embedded), so it is
+    # import-agnostic. Toggle via config["dwi_biascorrect"] (default True);
+    # consumers select input through get_dwi_for_csd().
+    input:
+        dwi=rules.nii2mif.output.dwi,
+        mask=rules.nii2mif.output.mask,
+    output:
+        dwi=temp(
+            bids(
+                root=root,
+                datatype="dwi",
+                desc="biascorr",
+                suffix="dwi.mif",
+                **subj_wildcards,
+            )
+        ),
+        bias=bids(
+            root=root,
+            datatype="dwi",
+            desc="biasfield",
+            suffix="dwi.mif",
+            **subj_wildcards,
+        ),
+    log:
+        "logs/sub-{subject}/dwi/sub-{subject}_dwibiascorrect.log",
+    benchmark:
+        "benchmarks/sub-{subject}/dwi/sub-{subject}_desc-dwibiascorrect.tsv"
+    threads: lambda wc: res("dwibiascorrect", "threads", 4)
+    resources:
+        mem_mb=lambda wc: res("dwibiascorrect", "mem_mb", 8000),
+        time=lambda wc: res("dwibiascorrect", "time_min", 30)
+    group:
+        "subj"
+    container:
+        config["singularity"]["diffparc"]
+    shell:
+        r"""
+        set -euo pipefail
+        mkdir -p "$(dirname "{output.dwi}")"
+        mkdir -p "$(dirname "{log}")"
+
+        scratch="$(mktemp -d)"
+        trap 'rm -rf "$scratch"' EXIT
+
+        dwibiascorrect ants "{input.dwi}" "{output.dwi}" \
+          -mask "{input.mask}" \
+          -bias "{output.bias}" \
+          -nthreads {threads} \
+          -scratch "$scratch" \
+          -force \
+          &> "{log}"
+        """
+
+
 rule dseg_nii2mif:
     input:
         "{file}_dseg.nii.gz",
@@ -85,7 +150,7 @@ rule dseg_nii2mif:
 rule dwi2response_msmt:
     # Dhollander, T.; Mito, R.; Raffelt, D. & Connelly, A. Improved white matter response function estimation for 3-tissue constrained spherical deconvolution. Proc Intl Soc Mag Reson Med, 2019, 555
     input:
-        dwi=rules.nii2mif.output.dwi,
+        dwi=get_dwi_for_csd,
         mask=rules.nii2mif.output.mask,
     output:
         wm_rf=bids(
@@ -129,7 +194,7 @@ rule dwi2response_msmt:
 rule dwi2fod_msmt:
     # Jeurissen, B; Tournier, J-D; Dhollander, T; Connelly, A & Sijbers, J. Multi-tissue constrained spherical deconvolution for improved analysis of multi-shell diffusion MRI data. NeuroImage, 2014, 103, 411-426
     input:
-        dwi=rules.nii2mif.output.dwi,
+        dwi=get_dwi_for_csd,
         mask=rules.nii2mif.output.mask,
         wm_rf=rules.dwi2response_msmt.output.wm_rf,
         gm_rf=rules.dwi2response_msmt.output.gm_rf,
@@ -222,7 +287,7 @@ rule mtnormalise:
 
 rule dwi2response_csd:
     input:
-        dwi=rules.nii2mif.output.dwi,
+        dwi=get_dwi_for_csd,
         mask=rules.nii2mif.output.mask,
     output:
         wm_rf=bids(
@@ -246,7 +311,7 @@ rule dwi2response_csd:
 
 rule dwi2fod_csd:
     input:
-        dwi=rules.nii2mif.output.dwi,
+        dwi=get_dwi_for_csd,
         mask=rules.nii2mif.output.mask,
         wm_rf=rules.dwi2response_csd.output.wm_rf,
     output:
@@ -271,7 +336,7 @@ rule dwi2fod_csd:
 
 rule dwi2tensor:
     input:
-        rules.nii2mif.output.dwi,
+        dwi=get_dwi_for_csd,
     output:
         tensor=bids(
             root=root,
@@ -287,12 +352,12 @@ rule dwi2tensor:
     container:
         config["singularity"]["diffparc"]
     shell:
-        "dwi2tensor {input} {output}"
+        "dwi2tensor {input.dwi} {output}"
 
 
 rule dwi_to_tensor:
     input:
-        dwi=rules.nii2mif.output.dwi,
+        dwi=get_dwi_for_csd,
         mask=rules.nii2mif.output.mask,
     output:
         tensor=bids(

@@ -12,7 +12,7 @@ SUBJECTS = sorted(set(inputs.input_zip_lists["T1w"]["subject"]))
 
 VOXEL_AGG_SCRIPT = os.path.join(workflow.basedir, "scripts", "voxel_target_aggregate.py")
 
-SWEEP_SEEDS = ["vtasnc", "snc", "vtapbp"]
+SWEEP_SEEDS = ["vtasnc", "snc", "vtapbp", "vtasncpbp"]
 HEMIS = ["L", "R"]
 TARGETS = ["Yeo7TianS3"]
 
