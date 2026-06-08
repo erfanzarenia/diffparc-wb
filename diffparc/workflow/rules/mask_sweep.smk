@@ -10,7 +10,8 @@ import os
 
 SUBJECTS = sorted(set(inputs.input_zip_lists["T1w"]["subject"]))
 
-VOXEL_AGG_SCRIPT = os.path.join(workflow.basedir, "scripts", "voxel_target_aggregate.py")
+BUILD_NODES_SCRIPT = os.path.join(workflow.basedir, "scripts", "build_voxel_nodes.py")
+SLICE_BLOCK_SCRIPT = os.path.join(workflow.basedir, "scripts", "slice_connectome_block.py")
 
 SWEEP_SEEDS = ["vtasnc", "snc", "vtapbp", "vtasncpbp"]
 HEMIS = ["L", "R"]
@@ -346,6 +347,58 @@ rule sweep_binarize_seed:
 
 
 # -----------------------------
+# Paste thresholded seed onto the full-FOV node grid (== target-atlas grid)
+# -----------------------------
+
+rule sweep_reslice_seed_to_nodegrid:
+    """
+    Reslice the thresholded sweep seed onto the full-FOV upsampled reference grid
+    (== target-atlas grid) with nearest-neighbour, used for BOTH filtering and
+    node building so they are voxel-consistent. For the native mask source this
+    is a lossless paste (same lattice); for brainsteminjected it is a genuine NN
+    regrid, inherent to that experimental source.
+    """
+    input:
+        seed_mask=rules.sweep_binarize_seed.output.seed_mask,
+        ref=bids(
+            root=root,
+            suffix="mask.nii.gz",
+            desc="brain",
+            space="T1w",
+            res="upsampled",
+            datatype="dwi",
+            **subj_wildcards,
+        ),
+    output:
+        mask=temp(
+            config["tmp_dir"]
+            + "/sub-{subject}/tracts/mask_sweep/{seed}/{mask_source}/"
+            + "sub-{subject}_hemi-{hemi}_label-{seed}_thr-{thr_tag}_res-nodegrid_mask.nii.gz"
+        ),
+    log:
+        "logs/sub-{subject}/mask_sweep/{seed}/{mask_source}/sub-{subject}_hemi-{hemi}_label-{seed}_thr-{thr_tag}_reslice_seed_to_nodegrid.log",
+    threads: 1
+    resources:
+        mem_mb=4000,
+        time=10
+    container:
+        config["singularity"]["diffparc"]
+    shell:
+        r"""
+        set -euo pipefail
+        mkdir -p "$(dirname "{output.mask}")"
+        mkdir -p "$(dirname "{log}")"
+
+        c3d -int 0 "{input.ref}" "{input.seed_mask}" \
+          -reslice-identity \
+          -threshold 0.5 inf 1 0 \
+          -type uchar \
+          -o "{output.mask}" \
+          &> "{log}"
+        """
+
+
+# -----------------------------
 # Filter existing tractogram by thresholded seed
 # -----------------------------
 
@@ -357,7 +410,7 @@ rule sweep_filter_tractogram:
         sift2_weights=ancient(
             "sub-{subject}/tracts/sub-{subject}_desc-final_method-mrtrix_sift2_weights.txt"
         ),
-        seed_mask=rules.sweep_binarize_seed.output.seed_mask,
+        seed_mask=rules.sweep_reslice_seed_to_nodegrid.output.mask,
     output:
         tractogram=temp(
             config["tmp_dir"]
@@ -401,80 +454,88 @@ rule sweep_filter_tractogram:
         """
 
 # -----------------------------
-# Assign filtered streamlines to targets
+# Per-voxel node parcellation (seed voxels + offset target atlas)
 # -----------------------------
 
-rule sweep_targets_assignments:
+rule sweep_build_seed_nodes:
     input:
-        tractogram=rules.sweep_filter_tractogram.output.tractogram,
-        dseg=ancient("sub-{subject}/anat/sub-{subject}_desc-{targets}_dseg.nii.gz"),
+        seed_mask=rules.sweep_reslice_seed_to_nodegrid.output.mask,
+        targets_dseg=ancient("sub-{subject}/anat/sub-{subject}_desc-{targets}_dseg.nii.gz"),
     output:
-        assignments=(
+        nodes=temp(
+            config["tmp_dir"]
+            + "/sub-{subject}/tracts/mask_sweep/{seed}/{mask_source}/"
+            + "sub-{subject}_hemi-{hemi}_label-{seed}_thr-{thr_tag}_desc-{targets}_nodes.nii.gz"
+        ),
+        seed_voxel_index=(
             "sub-{subject}/qc/mask_sweep/{seed}/{mask_source}/"
-            "sub-{subject}_hemi-{hemi}_label-{seed}_thr-{thr_tag}_desc-{targets}_method-mrtrix_assignments.txt"
+            "sub-{subject}_hemi-{hemi}_label-{seed}_thr-{thr_tag}_desc-{targets}_seed_voxel_index.csv"
         ),
     log:
-        "logs/sub-{subject}/mask_sweep/{seed}/{mask_source}/sub-{subject}_hemi-{hemi}_label-{seed}_thr-{thr_tag}_desc-{targets}_assignments.log",
+        "logs/sub-{subject}/mask_sweep/{seed}/{mask_source}/sub-{subject}_hemi-{hemi}_label-{seed}_thr-{thr_tag}_desc-{targets}_build_seed_nodes.log",
     benchmark:
-        "benchmarks/sub-{subject}/mask_sweep/{seed}/{mask_source}/sub-{subject}_hemi-{hemi}_label-{seed}_thr-{thr_tag}_desc-{targets}_assignments.tsv",
-    threads: lambda wc: config.get("mrtrix", {}).get("assign_threads", 4)
+        "benchmarks/sub-{subject}/mask_sweep/{seed}/{mask_source}/sub-{subject}_hemi-{hemi}_label-{seed}_thr-{thr_tag}_desc-{targets}_build_seed_nodes.tsv",
+    params:
+        script=lambda wc: BUILD_NODES_SCRIPT,
+        n_targets=lambda wc: len(config["targets"][wc.targets]["labels"]),
+    threads: 1
     resources:
-        mem_mb=16000,
-        time=30
+        mem_mb=4000,
+        time=10
     container:
         config["singularity"]["diffparc"]
     shell:
         r"""
         set -euo pipefail
-        mkdir -p "$(dirname "{output.assignments}")"
+        mkdir -p "$(dirname "{output.nodes}")"
+        mkdir -p "$(dirname "{output.seed_voxel_index}")"
         mkdir -p "$(dirname "{log}")"
 
-        tmpmat="$(mktemp)"
-        trap 'rm -f "$tmpmat"' EXIT
-
-        tck2connectome -nthreads {threads} -quiet -force \
-          -assignment_radial_search 2 \
-          -out_assignments "{output.assignments}" \
-          "{input.tractogram}" "{input.dseg}" "$tmpmat" \
+        python "{params.script}" \
+          --seed-mask "{input.seed_mask}" \
+          --targets-nii "{input.targets_dseg}" \
+          --n-targets {params.n_targets} \
+          --out-nodes "{output.nodes}" \
+          --out-voxel-index "{output.seed_voxel_index}" \
           &> "{log}"
         """
 
 # -----------------------------
-# Voxelwise aggregation
+# Voxelwise seed-to-target connectivity (MRtrix tck2connectome)
 # -----------------------------
 
 rule sweep_voxelwise_connectivity:
     input:
         tractogram=rules.sweep_filter_tractogram.output.tractogram,
         sift2_weights=rules.sweep_filter_tractogram.output.sift2_weights,
-        seed_mask=rules.sweep_binarize_seed.output.seed_mask,
-        assignments=rules.sweep_targets_assignments.output.assignments,
-        targets_dseg=ancient("sub-{subject}/anat/sub-{subject}_desc-{targets}_dseg.nii.gz"),
+        nodes=rules.sweep_build_seed_nodes.output.nodes,
+        seed_voxel_index=rules.sweep_build_seed_nodes.output.seed_voxel_index,
     output:
         connectivity_matrix=(
             "sub-{subject}/tracts/mask_sweep/{seed}/{mask_source}/"
             "sub-{subject}_hemi-{hemi}_label-{seed}_thr-{thr_tag}_desc-{targets}_connectivity_matrix.csv"
         ),
-        seed_voxel_index=(
+        assignments=(
             "sub-{subject}/qc/mask_sweep/{seed}/{mask_source}/"
-            "sub-{subject}_hemi-{hemi}_label-{seed}_thr-{thr_tag}_desc-{targets}_seed_voxel_index.csv"
+            "sub-{subject}_hemi-{hemi}_label-{seed}_thr-{thr_tag}_desc-{targets}_method-mrtrix_assignments.txt"
         ),
         qc_metrics=(
             "sub-{subject}/qc/mask_sweep/{seed}/{mask_source}/"
             "sub-{subject}_hemi-{hemi}_label-{seed}_thr-{thr_tag}_desc-{targets}_connectivity_qc.json"
         ),
-        global_target_counts=temp(
+        connectome_full=temp(
             config["tmp_dir"]
             + "/sub-{subject}/qc/mask_sweep/{seed}/{mask_source}/"
-            + "sub-{subject}_hemi-{hemi}_label-{seed}_thr-{thr_tag}_desc-{targets}_global_target_counts.csv"
+            + "sub-{subject}_hemi-{hemi}_label-{seed}_thr-{thr_tag}_desc-{targets}_connectome_full.txt"
         ),
     log:
         "logs/sub-{subject}/mask_sweep/{seed}/{mask_source}/sub-{subject}_hemi-{hemi}_label-{seed}_thr-{thr_tag}_desc-{targets}_voxelwise_connectivity.log",
     benchmark:
         "benchmarks/sub-{subject}/mask_sweep/{seed}/{mask_source}/sub-{subject}_hemi-{hemi}_label-{seed}_thr-{thr_tag}_desc-{targets}_voxelwise_connectivity.tsv",
     params:
-        script=lambda wc: VOXEL_AGG_SCRIPT,
+        slice_script=lambda wc: SLICE_BLOCK_SCRIPT,
         target_labels=lambda wc: ",".join(config["targets"][wc.targets]["labels"]),
+        target_search_radius=lambda wc: config.get("mrtrix", {}).get("target_search_radius", 4),
     threads: lambda wc: config.get("mrtrix", {}).get("voxelagg_threads", 4)
     resources:
         mem_mb=16000,
@@ -485,21 +546,22 @@ rule sweep_voxelwise_connectivity:
         r"""
         set -euo pipefail
         mkdir -p "$(dirname "{output.connectivity_matrix}")"
-        mkdir -p "$(dirname "{output.seed_voxel_index}")"
-        mkdir -p "$(dirname "{output.qc_metrics}")"
-        mkdir -p "$(dirname "{output.global_target_counts}")"
+        mkdir -p "$(dirname "{output.assignments}")"
+        mkdir -p "$(dirname "{output.connectome_full}")"
         mkdir -p "$(dirname "{log}")"
 
-        python "{params.script}" \
-          --seed-tck "{input.tractogram}" \
-          --seed-weights "{input.sift2_weights}" \
-          --seed-mask "{input.seed_mask}" \
-          --assignments "{input.assignments}" \
-          --targets-nii "{input.targets_dseg}" \
-          --header "{params.target_labels}" \
-          --out-weighted "{output.connectivity_matrix}" \
-          --out-counts "{output.global_target_counts}" \
-          --out-voxel-index "{output.seed_voxel_index}" \
-          --out-qc "{output.qc_metrics}" \
+        tck2connectome -nthreads {threads} -force -symmetric \
+          -assignment_radial_search {params.target_search_radius} \
+          -tck_weights_in "{input.sift2_weights}" \
+          -out_assignments "{output.assignments}" \
+          "{input.tractogram}" "{input.nodes}" "{output.connectome_full}" \
           &> "{log}"
+
+        python "{params.slice_script}" \
+          --connectome "{output.connectome_full}" \
+          --voxel-index "{input.seed_voxel_index}" \
+          --header "{params.target_labels}" \
+          --out-matrix "{output.connectivity_matrix}" \
+          --out-qc "{output.qc_metrics}" \
+          &>> "{log}"
         """
