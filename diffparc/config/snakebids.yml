@@ -952,7 +952,16 @@ mrtrix:
   minlength: 10
   maxlength: 250
   cutoff: 0.06
-  
+  # tck2connectome streamline->node assignment for voxelwise connectivity.
+  # Endpoint assignment is effectively ASYMMETRIC:
+  #   * Seed side  -> end-voxel (strict). Radial search tests the endpoint's own
+  #     voxel first, and every seed endpoint sits inside a labelled seed voxel,
+  #     so it is always assigned to its own voxel regardless of this radius.
+  #   * Target side -> radial search out to target_search_radius (mm), since
+  #     distal endpoints stop in unlabelled white matter and must reach a parcel.
+  # 4-6 mm is typical for cortical/subcortical target matching.
+  target_search_radius: 4
+
 mrtrix_rng_seed: 745 #random number generator seed for reproducible results
   
 wb_chunk_count: 2
@@ -1005,3 +1014,26 @@ mask_sweep:
   mask_sources:
     - native
     - brainsteminjected
+
+# -----------------------------------------------------------------------------
+# Experimental enrichment_sweep (additive, fully isolated; see rules/enrichment_sweep.smk)
+# Sweeps ROI seeding strength by generating ONE max-enrichment ROI tractogram and
+# random-subsampling it for lower levels. WB baseline is the reference condition.
+# Does NOT alter core pipeline behavior. Off by default.
+# -----------------------------------------------------------------------------
+enrichment_sweep:
+  enabled: False
+  seed: vtasncpbp            # ROI seed to sweep (per-hemi seed mask must exist)
+  hemis:
+    - L
+    - R
+  levels:                    # seeds-per-voxel-equivalent levels; max() is generated, rest subsampled
+    - 5000
+    - 3000
+    - 1000
+  subsample_seed: 42         # RNG seed for reproducible random subsampling
+  targets:                   # atlas(es) for the per-condition voxelwise connectivity fingerprint
+    - Yeo7TianS3
+  volume_bias_correction: False  # also emit a volume-bias-corrected fingerprint
+                                 # (tck2connectome -scale_invnodevol) per condition,
+                                 # alongside the uncorrected one. Off by default.
