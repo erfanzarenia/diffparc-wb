@@ -1028,6 +1028,21 @@ tractography_qc_nsubsample: 200000   # streamlines kept in the visual-inspection
 tractography_qc_seed: 42             # RNG seed for that random subset (reproducible)
 
 # -----------------------------------------------------------------------------
+# Optional microstructure-weighted connectomes (rules/microstructure_connectomes.smk)
+# For the whole-brain (final) tractogram + SIFT2 weights: sample FA/MD/RD along
+# streamlines (tcksample -stat_tck mean) and build SIFT2-weighted, mean-edge atlas
+# connectomes (tck2connectome -scale_file -stat_edge mean). MAIN connectivity only;
+# additive. RD map + per-streamline samples are preserved. Off by default.
+# -----------------------------------------------------------------------------
+microstructure_connectomes: False
+microstructure_connectomes_targets:
+  - Yeo7TianS3
+microstructure_connectomes_metrics:
+  - FA
+  - MD
+  - RD
+
+# -----------------------------------------------------------------------------
 # Experimental enrichment_sweep (additive, fully isolated; see rules/enrichment_sweep.smk)
 # Sweeps ROI seeding strength by generating ONE max-enrichment ROI tractogram and
 # random-subsampling it for lower levels. WB baseline is the reference condition.

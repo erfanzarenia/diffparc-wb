@@ -352,6 +352,24 @@ def get_tractography_qc_outputs():
         )
     return files
 
+
+def get_microstructure_connectome_outputs():
+    # FA/MD/RD-weighted atlas connectomes for the whole-brain (final) tractogram
+    # (rules/microstructure_connectomes.smk). Optional, additive, MAIN pipeline only.
+    if config.get("anat_only", False) or config.get("no_vol", False):
+        return []
+    if not config.get("microstructure_connectomes", False):
+        return []
+
+    subjects = sorted(set(inputs.input_zip_lists["T1w"]["subject"]))
+    targets = config.get("microstructure_connectomes_targets", ["Yeo7TianS3"])
+    metrics = config.get("microstructure_connectomes_metrics", ["FA", "MD", "RD"])
+    return expand(
+        "sub-{subject}/tracts/"
+        "sub-{subject}_desc-{targets}_meas-{metric}_connectivity_matrix.csv",
+        subject=subjects, targets=targets, metric=metrics,
+    )
+
 # -----------------------------
 # Main target for your current use case
 # -----------------------------
@@ -367,7 +385,8 @@ rule all:
         get_subj_global_conn_sift2(),
         get_mask_sweep_outputs(),
         get_enrichment_sweep_outputs(),
-        get_tractography_qc_outputs()
+        get_tractography_qc_outputs(),
+        get_microstructure_connectome_outputs()
     default_target: True
 
 
@@ -397,6 +416,7 @@ if not config["anat_only"]:
     include: "rules/mrtrix_roi_enrichment.smk"
     include: "rules/sift2.smk"
     include: "rules/connectivity.smk"
+    include: "rules/microstructure_connectomes.smk"
     include: "rules/mask_sweep.smk"
     include: "rules/enrichment_sweep.smk"
 
