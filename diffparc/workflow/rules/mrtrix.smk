@@ -87,15 +87,13 @@ rule dwibiascorrect:
         dwi=rules.nii2mif.output.dwi,
         mask=rules.nii2mif.output.mask,
     output:
-        dwi=temp(
-            bids(
+        dwi=bids(
                 root=root,
                 datatype="dwi",
                 desc="biascorr",
                 suffix="dwi.mif",
                 **subj_wildcards,
-            )
-        ),
+            ),
         bias=bids(
             root=root,
             datatype="dwi",
