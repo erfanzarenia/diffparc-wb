@@ -328,3 +328,170 @@ rule voxelwise_connectivity:
           --out-qc "{output.qc_metrics}" \
           &>> "{log}"
         """
+
+
+# =============================================================================
+# Tractography visual QC (gated by config tractography_qc; see scripts/tractogram_qc.py)
+# Emits, into /qc, for the whole-brain (final) and seed-filtered tractograms:
+#   TDI, endpoint map, track-weighted DEC, a random 200k subset, length CSV+PNG.
+# fod2dec provides an FOD-based DEC anatomical background (per subject, reused by
+# the enrichment_sweep module too). All additive -- no connectome rule is touched.
+# =============================================================================
+TRACTOGRAM_QC_SCRIPT = os.path.join(workflow.basedir, "scripts", "tractogram_qc.py")
+QC_NSUBSAMPLE = int(config.get("tractography_qc_nsubsample", 200000))
+QC_SUBSAMPLE_SEED = int(config.get("tractography_qc_seed", 42))
+
+
+rule fod2dec:
+    """FOD-based DEC map: anatomical background for overlaying tractograms in mrview."""
+    input:
+        fod=get_fod_for_tracking,
+        mask=bids(root=root, datatype="dwi", suffix="mask.mif", **subj_wildcards),
+    output:
+        decmap="sub-{subject}/qc/connectivity/sub-{subject}_desc-fod_decmap.mif",
+    log:
+        "logs/sub-{subject}/connectivity/sub-{subject}_fod2dec.log",
+    threads: lambda wc: res("fod2dec", "threads", 1)
+    resources:
+        mem_mb=lambda wc: res("fod2dec", "mem_mb", 4000),
+        time=lambda wc: res("fod2dec", "time_min", 15),
+    container:
+        config["singularity"]["diffparc"]
+    group:
+        "subj"
+    shell:
+        r"""
+        set -euo pipefail
+        mkdir -p "$(dirname "{output.decmap}")"
+        mkdir -p "$(dirname "{log}")"
+
+        fod2dec "{input.fod}" "{output.decmap}" -mask "{input.mask}" &> "{log}"
+        """
+
+
+rule qc_tractogram_wb:
+    """Visual QC for the whole-brain (final) tractogram + its SIFT2 weights."""
+    input:
+        tck=rules.final_tractogram.output.tck,
+        weights=rules.run_sift2.output.weights,
+        template=bids(root=root, datatype="dwi", suffix="mask.mif", **subj_wildcards),
+    output:
+        tdi="sub-{subject}/qc/connectivity/sub-{subject}_desc-final_tdi.mif",
+        endpoints="sub-{subject}/qc/connectivity/sub-{subject}_desc-final_endpoints.mif",
+        decmap="sub-{subject}/qc/connectivity/sub-{subject}_desc-final_decmap.mif",
+        subset="sub-{subject}/qc/connectivity/sub-{subject}_desc-final_subset.tck",
+        lengths_csv="sub-{subject}/qc/connectivity/sub-{subject}_desc-final_lengths.csv",
+        lengths_png="sub-{subject}/qc/connectivity/sub-{subject}_desc-final_lengths.png",
+    params:
+        script=lambda wc: TRACTOGRAM_QC_SCRIPT,
+        n_subsample=QC_NSUBSAMPLE,
+        seed=QC_SUBSAMPLE_SEED,
+    log:
+        "logs/sub-{subject}/connectivity/sub-{subject}_desc-final_tractogram_qc.log",
+    benchmark:
+        "benchmarks/sub-{subject}/connectivity/sub-{subject}_desc-final_tractogram_qc.tsv"
+    threads: lambda wc: res("qc_tractogram_wb", "threads", 4)
+    resources:
+        mem_mb=lambda wc: res("qc_tractogram_wb", "mem_mb", 16000),
+        time=lambda wc: res("qc_tractogram_wb", "time_min", 120),
+    container:
+        config["singularity"]["diffparc"]
+    group:
+        "subj"
+    shell:
+        r"""
+        set -euo pipefail
+        mkdir -p "$(dirname "{output.tdi}")"
+        mkdir -p "$(dirname "{log}")"
+
+        python "{params.script}" \
+          --tck "{input.tck}" \
+          --template "{input.template}" \
+          --weights "{input.weights}" \
+          --out-tdi "{output.tdi}" \
+          --out-endpoints "{output.endpoints}" \
+          --out-dec "{output.decmap}" \
+          --out-subset "{output.subset}" \
+          --out-lengths-csv "{output.lengths_csv}" \
+          --out-lengths-png "{output.lengths_png}" \
+          --n-subsample {params.n_subsample} \
+          --seed {params.seed} \
+          --nthreads {threads} \
+          &> "{log}"
+        """
+
+
+rule qc_tractogram_filtered:
+    """Visual QC for the final seed-filtered tractogram + its SIFT2 weights."""
+    input:
+        tck=rules.filter_tractogram.output.tractogram,
+        weights=rules.filter_tractogram.output.sift2_weights,
+        template=bids(root=root, datatype="dwi", suffix="mask.mif", **subj_wildcards),
+    output:
+        tdi=(
+            "sub-{subject}/qc/connectivity/"
+            "sub-{subject}_hemi-{hemi}_label-{seed}_desc-seedfiltered_tdi.mif"
+        ),
+        endpoints=(
+            "sub-{subject}/qc/connectivity/"
+            "sub-{subject}_hemi-{hemi}_label-{seed}_desc-seedfiltered_endpoints.mif"
+        ),
+        decmap=(
+            "sub-{subject}/qc/connectivity/"
+            "sub-{subject}_hemi-{hemi}_label-{seed}_desc-seedfiltered_decmap.mif"
+        ),
+        subset=(
+            "sub-{subject}/qc/connectivity/"
+            "sub-{subject}_hemi-{hemi}_label-{seed}_desc-seedfiltered_subset.tck"
+        ),
+        lengths_csv=(
+            "sub-{subject}/qc/connectivity/"
+            "sub-{subject}_hemi-{hemi}_label-{seed}_desc-seedfiltered_lengths.csv"
+        ),
+        lengths_png=(
+            "sub-{subject}/qc/connectivity/"
+            "sub-{subject}_hemi-{hemi}_label-{seed}_desc-seedfiltered_lengths.png"
+        ),
+    params:
+        script=lambda wc: TRACTOGRAM_QC_SCRIPT,
+        n_subsample=QC_NSUBSAMPLE,
+        seed=QC_SUBSAMPLE_SEED,
+    log:
+        (
+            "logs/sub-{subject}/connectivity/"
+            "sub-{subject}_hemi-{hemi}_label-{seed}_desc-seedfiltered_tractogram_qc.log"
+        ),
+    benchmark:
+        (
+            "benchmarks/sub-{subject}/connectivity/"
+            "sub-{subject}_hemi-{hemi}_label-{seed}_desc-seedfiltered_tractogram_qc.tsv"
+        )
+    threads: lambda wc: res("qc_tractogram_filtered", "threads", 2)
+    resources:
+        mem_mb=lambda wc: res("qc_tractogram_filtered", "mem_mb", 8000),
+        time=lambda wc: res("qc_tractogram_filtered", "time_min", 30),
+    container:
+        config["singularity"]["diffparc"]
+    group:
+        "subj"
+    shell:
+        r"""
+        set -euo pipefail
+        mkdir -p "$(dirname "{output.tdi}")"
+        mkdir -p "$(dirname "{log}")"
+
+        python "{params.script}" \
+          --tck "{input.tck}" \
+          --template "{input.template}" \
+          --weights "{input.weights}" \
+          --out-tdi "{output.tdi}" \
+          --out-endpoints "{output.endpoints}" \
+          --out-dec "{output.decmap}" \
+          --out-subset "{output.subset}" \
+          --out-lengths-csv "{output.lengths_csv}" \
+          --out-lengths-png "{output.lengths_png}" \
+          --n-subsample {params.n_subsample} \
+          --seed {params.seed} \
+          --nthreads {threads} \
+          &> "{log}"
+        """

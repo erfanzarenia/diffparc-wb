@@ -298,7 +298,59 @@ def get_enrichment_sweep_outputs():
                 targets=targets,
             )
 
-    return summaries + fingerprints + fingerprints_invnodevol + fingerprints_propagated
+    # Tractography visual QC (gated by tractography_qc): WB baseline + every
+    # condition's seed-filtered tractogram, plus the per-subject FOD DEC background.
+    qc = []
+    if config.get("tractography_qc", True):
+        arts = ["tdi.mif", "endpoints.mif", "decmap.mif", "subset.tck",
+                "lengths.csv", "lengths.png"]
+        qc += expand(
+            "sub-{subject}/qc/enrichment_sweep/sub-{subject}_label-{seed}_desc-wb_{art}",
+            subject=subjects, seed=seed, art=arts,
+        )
+        qc += expand(
+            "sub-{subject}/qc/enrichment_sweep/"
+            "sub-{subject}_hemi-{hemi}_label-{seed}_cond-{cond}_desc-seedfiltered_{art}",
+            subject=subjects, seed=seed, hemi=hemis, cond=conds, art=arts,
+        )
+        qc += expand(
+            "sub-{subject}/qc/connectivity/sub-{subject}_desc-fod_decmap.mif",
+            subject=subjects,
+        )
+
+    return summaries + fingerprints + fingerprints_invnodevol + fingerprints_propagated + qc
+
+
+def get_tractography_qc_outputs():
+    # Visual QC for the whole-brain (final) and seed-filtered tractograms in the
+    # core connectivity pipeline (rules.qc_tractogram_wb / qc_tractogram_filtered /
+    # fod2dec). Gated by config tractography_qc; needs the DWI tractography stack.
+    if config.get("anat_only", False) or config.get("no_vol", False):
+        return []
+    if not config.get("tractography_qc", True):
+        return []
+
+    subjects = sorted(set(inputs.input_zip_lists["T1w"]["subject"]))
+    arts = ["tdi.mif", "endpoints.mif", "decmap.mif", "subset.tck",
+            "lengths.csv", "lengths.png"]
+
+    # Per subject: whole-brain (final) tractogram QC + FOD DEC background.
+    files = expand(
+        "sub-{subject}/qc/connectivity/sub-{subject}_desc-final_{art}",
+        subject=subjects, art=arts,
+    )
+    files += expand(
+        "sub-{subject}/qc/connectivity/sub-{subject}_desc-fod_decmap.mif",
+        subject=subjects,
+    )
+    # Per seed x hemi: seed-filtered tractogram QC.
+    for seed in config["select_seeds"]:
+        files += expand(
+            "sub-{subject}/qc/connectivity/"
+            "sub-{subject}_hemi-{hemi}_label-{seed}_desc-seedfiltered_{art}",
+            subject=subjects, hemi=config["hemispheres"], seed=seed, art=arts,
+        )
+    return files
 
 # -----------------------------
 # Main target for your current use case
@@ -314,7 +366,8 @@ rule all:
     input:
         get_subj_global_conn_sift2(),
         get_mask_sweep_outputs(),
-        get_enrichment_sweep_outputs()
+        get_enrichment_sweep_outputs(),
+        get_tractography_qc_outputs()
     default_target: True
 
 

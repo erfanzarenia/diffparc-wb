@@ -813,6 +813,121 @@ rule enrich_voxelwise_connectivity_propagated_invnodevol:
 
 
 # -----------------------------
+# (6g) Tractography visual QC (gated by config tractography_qc).
+#      Same artifacts as connectivity.smk (TDI, endpoints, track-weighted DEC,
+#      random 200k subset, length CSV+PNG) via the shared scripts/tractogram_qc.py,
+#      for the WB baseline tractogram and each condition's seed-filtered tractogram.
+#      The FOD-based DEC background (rule fod2dec) is reused per subject from
+#      connectivity.smk -- not redefined here. Constants TRACTOGRAM_QC_SCRIPT /
+#      QC_NSUBSAMPLE / QC_SUBSAMPLE_SEED come from connectivity.smk (included first).
+# -----------------------------
+rule enrich_qc_tractogram_wb:
+    """Visual QC for the whole-brain baseline tractogram + its (cond=wb) SIFT2 weights."""
+    input:
+        tck=rules.wb_tckgen_merge.output.tck,
+        weights=lambda wc: rules.enrich_sift2.output.weights.format(
+            subject=wc.subject, seed=wc.seed, cond="wb"
+        ),
+        template=bids(root=root, datatype="dwi", suffix="mask.mif", **subj_wildcards),
+    output:
+        tdi=_QC + "/sub-{subject}_label-{seed}_desc-wb_tdi.mif",
+        endpoints=_QC + "/sub-{subject}_label-{seed}_desc-wb_endpoints.mif",
+        decmap=_QC + "/sub-{subject}_label-{seed}_desc-wb_decmap.mif",
+        subset=_QC + "/sub-{subject}_label-{seed}_desc-wb_subset.tck",
+        lengths_csv=_QC + "/sub-{subject}_label-{seed}_desc-wb_lengths.csv",
+        lengths_png=_QC + "/sub-{subject}_label-{seed}_desc-wb_lengths.png",
+    params:
+        script=lambda wc: TRACTOGRAM_QC_SCRIPT,
+        n_subsample=QC_NSUBSAMPLE,
+        seed=QC_SUBSAMPLE_SEED,
+    log:
+        "logs/sub-{subject}/enrichment_sweep/sub-{subject}_label-{seed}_desc-wb_tractogram_qc.log",
+    benchmark:
+        "benchmarks/sub-{subject}/enrichment_sweep/sub-{subject}_label-{seed}_desc-wb_tractogram_qc.tsv"
+    threads: lambda wc: res("enrich_qc_tractogram_wb", "threads", 4)
+    resources:
+        mem_mb=lambda wc: res("enrich_qc_tractogram_wb", "mem_mb", 16000),
+        time=lambda wc: res("enrich_qc_tractogram_wb", "time_min", 120),
+    container:
+        config["singularity"]["diffparc"]
+    group:
+        "subj"
+    shell:
+        r"""
+        set -euo pipefail
+        mkdir -p "$(dirname "{output.tdi}")"
+        mkdir -p "$(dirname "{log}")"
+
+        python "{params.script}" \
+          --tck "{input.tck}" \
+          --template "{input.template}" \
+          --weights "{input.weights}" \
+          --out-tdi "{output.tdi}" \
+          --out-endpoints "{output.endpoints}" \
+          --out-dec "{output.decmap}" \
+          --out-subset "{output.subset}" \
+          --out-lengths-csv "{output.lengths_csv}" \
+          --out-lengths-png "{output.lengths_png}" \
+          --n-subsample {params.n_subsample} \
+          --seed {params.seed} \
+          --nthreads {threads} \
+          &> "{log}"
+        """
+
+
+rule enrich_qc_tractogram_filtered:
+    """Visual QC for one condition's seed-filtered tractogram + its SIFT2 weights."""
+    input:
+        tck=rules.enrich_filter_tractogram.output.tractogram,
+        weights=rules.enrich_filter_tractogram.output.sift2_weights,
+        template=bids(root=root, datatype="dwi", suffix="mask.mif", **subj_wildcards),
+    output:
+        tdi=_QC + "/sub-{subject}_hemi-{hemi}_label-{seed}_cond-{cond}_desc-seedfiltered_tdi.mif",
+        endpoints=_QC + "/sub-{subject}_hemi-{hemi}_label-{seed}_cond-{cond}_desc-seedfiltered_endpoints.mif",
+        decmap=_QC + "/sub-{subject}_hemi-{hemi}_label-{seed}_cond-{cond}_desc-seedfiltered_decmap.mif",
+        subset=_QC + "/sub-{subject}_hemi-{hemi}_label-{seed}_cond-{cond}_desc-seedfiltered_subset.tck",
+        lengths_csv=_QC + "/sub-{subject}_hemi-{hemi}_label-{seed}_cond-{cond}_desc-seedfiltered_lengths.csv",
+        lengths_png=_QC + "/sub-{subject}_hemi-{hemi}_label-{seed}_cond-{cond}_desc-seedfiltered_lengths.png",
+    params:
+        script=lambda wc: TRACTOGRAM_QC_SCRIPT,
+        n_subsample=QC_NSUBSAMPLE,
+        seed=QC_SUBSAMPLE_SEED,
+    log:
+        "logs/sub-{subject}/enrichment_sweep/sub-{subject}_hemi-{hemi}_label-{seed}_cond-{cond}_desc-seedfiltered_tractogram_qc.log",
+    benchmark:
+        "benchmarks/sub-{subject}/enrichment_sweep/sub-{subject}_hemi-{hemi}_label-{seed}_cond-{cond}_desc-seedfiltered_tractogram_qc.tsv"
+    threads: lambda wc: res("enrich_qc_tractogram_filtered", "threads", 2)
+    resources:
+        mem_mb=lambda wc: res("enrich_qc_tractogram_filtered", "mem_mb", 8000),
+        time=lambda wc: res("enrich_qc_tractogram_filtered", "time_min", 30),
+    container:
+        config["singularity"]["diffparc"]
+    group:
+        "subj"
+    shell:
+        r"""
+        set -euo pipefail
+        mkdir -p "$(dirname "{output.tdi}")"
+        mkdir -p "$(dirname "{log}")"
+
+        python "{params.script}" \
+          --tck "{input.tck}" \
+          --template "{input.template}" \
+          --weights "{input.weights}" \
+          --out-tdi "{output.tdi}" \
+          --out-endpoints "{output.endpoints}" \
+          --out-dec "{output.decmap}" \
+          --out-subset "{output.subset}" \
+          --out-lengths-csv "{output.lengths_csv}" \
+          --out-lengths-png "{output.lengths_png}" \
+          --n-subsample {params.n_subsample} \
+          --seed {params.seed} \
+          --nthreads {threads} \
+          &> "{log}"
+        """
+
+
+# -----------------------------
 # (7) Per-condition metrics row (logging only)
 # -----------------------------
 rule enrich_condition_row:
@@ -918,6 +1033,32 @@ def _enrich_fingerprint_outputs():
     return out
 
 
+# Tractography visual-QC targets (gated by config tractography_qc): WB baseline +
+# every condition's seed-filtered tractogram, plus the per-subject FOD DEC
+# background (rule fod2dec, from connectivity.smk).
+_ENRICH_QC_ARTS = ["tdi.mif", "endpoints.mif", "decmap.mif", "subset.tck",
+                   "lengths.csv", "lengths.png"]
+
+
+def _enrich_qc_outputs():
+    if not bool(config.get("tractography_qc", True)):
+        return []
+    wb = expand(
+        _QC + "/sub-{subject}_label-{seed}_desc-wb_{art}",
+        subject=ENRICH_SUBJECTS, seed=ENRICH_SEED, art=_ENRICH_QC_ARTS,
+    )
+    filtered = expand(
+        _QC + "/sub-{subject}_hemi-{hemi}_label-{seed}_cond-{cond}_desc-seedfiltered_{art}",
+        subject=ENRICH_SUBJECTS, seed=ENRICH_SEED, hemi=ENRICH_HEMIS,
+        cond=ENRICH_CONDS, art=_ENRICH_QC_ARTS,
+    )
+    fod = expand(
+        "sub-{subject}/qc/connectivity/sub-{subject}_desc-fod_decmap.mif",
+        subject=ENRICH_SUBJECTS,
+    )
+    return wb + filtered + fod
+
+
 rule all_enrichment_sweep:
     input:
         (
@@ -926,4 +1067,5 @@ rule all_enrichment_sweep:
                 subject=ENRICH_SUBJECTS, seed=ENRICH_SEED,
             )
             + _enrich_fingerprint_outputs()
+            + _enrich_qc_outputs()
         ) if ENRICH_ENABLED else [],

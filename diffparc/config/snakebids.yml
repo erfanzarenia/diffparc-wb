@@ -1016,6 +1016,18 @@ mask_sweep:
     - brainsteminjected
 
 # -----------------------------------------------------------------------------
+# Tractography visual QC (rules/connectivity.smk + rules/enrichment_sweep.smk)
+# For the whole-brain and final seed-filtered tractograms, emit into /qc:
+#   TDI, endpoint map, track-weighted DEC, FOD-based DEC (anatomical background),
+#   a random 200k-streamline subset (.tck) for mrview, and a length histogram.
+# On by default; the whole-brain pass runs tckmap x3 over the full tractogram, so
+# turn this off to skip it.
+# -----------------------------------------------------------------------------
+tractography_qc: True
+tractography_qc_nsubsample: 200000   # streamlines kept in the visual-inspection subset
+tractography_qc_seed: 42             # RNG seed for that random subset (reproducible)
+
+# -----------------------------------------------------------------------------
 # Experimental enrichment_sweep (additive, fully isolated; see rules/enrichment_sweep.smk)
 # Sweeps ROI seeding strength by generating ONE max-enrichment ROI tractogram and
 # random-subsampling it for lower levels. WB baseline is the reference condition.
