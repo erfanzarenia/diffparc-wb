@@ -6,16 +6,26 @@ once, and every lower enrichment level is obtained by random subsampling ONLY
 (no re-seeding / no re-running tckgen).
 
 The number of streamlines kept is ``round(n_total * fraction)`` where
-``fraction = level / max_level`` (clamped to <= n_total). The selection is a
-uniform random draw without replacement, made reproducible by seeding NumPy's
-RNG with ``(seed, level)``. Selected indices are kept in their original order so
-the output is a faithful random subset of the input.
+``fraction = level / max_level`` (clamped to <= n_total).
+
+Subsampling is *nested*: a single, level-INDEPENDENT random permutation of the
+streamline indices is drawn (seeded by ``seed`` only), and each level keeps the
+first ``n_keep`` of that fixed permutation. Because the permutation is the same
+for every level, the kept set at a lower level is a strict subset of every
+higher level (e.g. 1000 ⊂ 3000 ⊂ 5000 — each higher level is the lower one plus
+extra streamlines). Indices are sorted before extraction so the output preserves
+the original streamline order.
+
+The selected indices (and ``n_total``) are also written to an optional meta JSON
+so a companion step can propagate per-streamline SIFT2 weights from the maximal
+tractogram to this level without re-fitting SIFT2.
 
 This performs no connectivity math and does not touch SIFT2 — it only writes a
-smaller tractogram.
+smaller tractogram (and, optionally, the selection metadata).
 """
 
 import argparse
+import json
 import os
 import sys
 
@@ -29,8 +39,10 @@ def main():
     ap.add_argument("--out-tck", required=True, help="Output subsampled tractogram.")
     ap.add_argument("--level", type=int, required=True, help="This enrichment level.")
     ap.add_argument("--max-level", type=int, required=True, help="Maximal enrichment level.")
-    ap.add_argument("--seed", type=int, default=42, help="Base RNG seed.")
+    ap.add_argument("--seed", type=int, default=42, help="Base RNG seed (level-independent).")
     ap.add_argument("--out-count", required=False, help="Write kept streamline count here.")
+    ap.add_argument("--out-meta", required=False,
+                    help="Write selection metadata (n_total, indices, ...) as JSON here.")
     args = ap.parse_args()
 
     if args.max_level <= 0:
@@ -50,13 +62,15 @@ def main():
 
     os.makedirs(os.path.dirname(args.out_tck) or ".", exist_ok=True)
 
-    if n_keep >= n_total:
-        # Maximal level (fraction 1.0): keep everything, no random draw needed.
-        idx = np.arange(n_total, dtype=np.int64)
-    else:
-        rng = np.random.default_rng([args.seed, args.level])
-        idx = rng.choice(n_total, size=n_keep, replace=False)
-        idx.sort()  # preserve original order
+    # Nested selection: one fixed permutation (seeded by `seed` ONLY, not by
+    # level), sliced to a prefix of size n_keep. Identical permutation across
+    # levels => prefixes are nested => lower levels are strict subsets of higher
+    # ones. Sorting keeps the output in original streamline order. At the maximal
+    # level n_keep == n_total, so perm[:n_keep] sorted == arange(n_total) and
+    # everything is kept (the superset of all lower levels).
+    rng = np.random.default_rng(args.seed)
+    perm = rng.permutation(n_total)
+    idx = np.sort(perm[:n_keep]).astype(np.int64)
 
     new_streamlines = [streamlines[int(i)] for i in idx]
 
@@ -70,6 +84,23 @@ def main():
         os.makedirs(os.path.dirname(args.out_count) or ".", exist_ok=True)
         with open(args.out_count, "w") as f:
             f.write(str(len(idx)) + "\n")
+
+    if args.out_meta:
+        os.makedirs(os.path.dirname(args.out_meta) or ".", exist_ok=True)
+        with open(args.out_meta, "w") as f:
+            json.dump(
+                {
+                    "n_total": int(n_total),
+                    "n_keep": int(len(idx)),
+                    "level": int(args.level),
+                    "max_level": int(args.max_level),
+                    "seed": int(args.seed),
+                    "fraction": float(fraction),
+                    "nested": True,
+                    "indices": [int(i) for i in idx],
+                },
+                f,
+            )
 
     print(
         f"subsample_tractogram: level={args.level} max={args.max_level} "

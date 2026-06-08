@@ -4,13 +4,18 @@
 # Sweeps ROI seeding strength ("enrichment level") WITHOUT changing any core rule:
 #   1. Generate ONE maximal-enrichment ROI tractogram (voxelwise ROI seeding at
 #      spv = max(levels)). This is the ONLY ROI tractogram generation.
-#   2. Lower levels = reproducible RANDOM SUBSAMPLE of that maximal ROI tractogram
-#      (no re-seeding, no re-running tckgen).
+#   2. Lower levels = reproducible NESTED random subsample of that maximal ROI
+#      tractogram (no re-seeding, no re-running tckgen). Nested = each higher
+#      level is a strict superset of the lower ones (1000 ⊂ 3000 ⊂ 5000).
 #   3. WB baseline = ONE whole-brain tractogram (no ROI), reused read-only from
 #      the core pipeline (rules.wb_tckgen_merge). This is the reference condition.
 #   4. Per enrichment level: combine fixed WB + subsampled ROI (no recompute).
-#   5. SIFT2 run independently per condition (WB baseline + each level), identical
-#      params; logs mu, cost, weights.
+#   5. SIFT2, default branch ("refit"): run independently per condition (WB
+#      baseline + each level), identical params; logs mu, cost, weights.
+#      Optional second branch ("propagated", config sift2_propagated): fit SIFT2
+#      ONCE on the maximal combined tractogram and carry those weights down to
+#      lower levels via the SAME nested subsample (streamlines + weights), so the
+#      two branches differ ONLY in the SIFT2 weighting, never in the streamlines.
 #   6. Safety check (tckinfo) applied unchanged, once on WB baseline + once/condition.
 #
 # Only entry points into the rest of the workflow: this include line and the
@@ -25,6 +30,7 @@ def res(rule, key, default):
 
 SUBSAMPLE_SCRIPT = os.path.join(workflow.basedir, "scripts", "subsample_tractogram.py")
 METRICS_SCRIPT = os.path.join(workflow.basedir, "scripts", "enrichment_condition_metrics.py")
+PROPAGATE_SCRIPT = os.path.join(workflow.basedir, "scripts", "propagate_sift2_weights.py")
 # Reused from the main connectivity pipeline (connectivity.smk) -- no duplicate logic.
 SLICE_BLOCK_SCRIPT = os.path.join(workflow.basedir, "scripts", "slice_connectome_block.py")
 
@@ -39,6 +45,10 @@ ENRICH_TARGETS = ENRICH_CFG.get("targets", ["Yeo7TianS3"])
 # Optional: also emit a volume-bias-corrected fingerprint (tck2connectome
 # -scale_invnodevol) per condition, in addition to the uncorrected one.
 ENRICH_VOLNORM = bool(ENRICH_CFG.get("volume_bias_correction", False))
+# Optional: also emit the "propagated" SIFT2 branch (fit once on the maximal
+# combined tractogram, carry weights down the nested subsample) alongside the
+# default per-level "refit" branch.
+ENRICH_SIFT2_PROP = bool(ENRICH_CFG.get("sift2_propagated", False))
 # Conditions: WB baseline + each requested level (as strings).
 ENRICH_CONDS = ["wb"] + [str(lv) for lv in ENRICH_LEVELS]
 
@@ -87,6 +97,41 @@ def enrich_roi_arg(wc):
     if wc.cond == "wb":
         return ""
     return ROI_SUB.format(subject=wc.subject, seed=wc.seed, level=wc.cond)
+
+
+# --- Propagated-SIFT2 branch helpers (only used when sift2_propagated is set) ---
+def enrich_weights_max(wc):
+    """SIFT2 weights from the maximal combined tractogram -- the single fit the
+    propagated branch reuses for every level."""
+    return rules.enrich_sift2.output.weights.format(
+        subject=wc.subject, seed=wc.seed, cond=str(ENRICH_MAX_LEVEL)
+    )
+
+
+def enrich_roi_max_meta(wc):
+    """Subsample meta at the maximal level (supplies n_total = ROI_max count)."""
+    return rules.enrich_roi_subsample.output.meta.format(
+        subject=wc.subject, seed=wc.seed, level=str(ENRICH_MAX_LEVEL)
+    )
+
+
+def enrich_cond_indices(wc):
+    """This level's subsample meta (nested ROI indices); none for the WB baseline."""
+    if wc.cond == "wb":
+        return []
+    return rules.enrich_roi_subsample.output.meta.format(
+        subject=wc.subject, seed=wc.seed, level=wc.cond
+    )
+
+
+def enrich_indices_path(wc):
+    """This level's subsample meta path, or '' for the WB baseline (the script
+    treats an empty --indices as 'no ROI streamlines')."""
+    if wc.cond == "wb":
+        return ""
+    return rules.enrich_roi_subsample.output.meta.format(
+        subject=wc.subject, seed=wc.seed, level=wc.cond
+    )
 
 
 # -----------------------------
@@ -189,12 +234,20 @@ rule enrich_roi_merge_max:
 # (2) Lower levels = random subsample ONLY (no re-seeding)
 # -----------------------------
 rule enrich_roi_subsample:
-    """Reproducible random subsample of the maximal ROI tractogram to this level."""
+    """Reproducible NESTED random subsample of the maximal ROI tractogram to this level.
+
+    The `meta` JSON records n_total (ROI_max count) and the selected indices; it
+    lets the optional propagated-SIFT2 branch carry max-fit weights down to this
+    level without re-fitting (scripts/propagate_sift2_weights.py).
+    """
     input:
         tck=rules.enrich_roi_merge_max.output.tck,
     output:
         tck=temp(ROI_SUB),
         count=_QC + "/sub-{subject}_label-{seed}_level-{level}_roi_count.txt",
+        meta=temp(
+            _TMP + "/sub-{subject}_label-{seed}_level-{level}_desc-roi_subsample_meta.json"
+        ),
     params:
         script=lambda wc: SUBSAMPLE_SCRIPT,
         max_level=lambda wc: ENRICH_MAX_LEVEL,
@@ -225,6 +278,7 @@ rule enrich_roi_subsample:
           --max-level {params.max_level} \
           --seed {params.subsample_seed} \
           --out-count "{output.count}" \
+          --out-meta "{output.meta}" \
           &> "{log}"
         """
 
@@ -525,6 +579,240 @@ rule enrich_voxelwise_connectivity_invnodevol:
 
 
 # -----------------------------
+# (6c) OPTIONAL propagated-SIFT2 branch -- per-condition propagated weights.
+#      No SIFT2 re-fit: reuse the maximal-level SIFT2 weights (fit on WB ++ ROI_max)
+#      and reindex them onto this condition's tractogram --
+#        cond=wb    -> WB block only
+#        cond=level -> WB block ++ ROI_max weights at the nested-subset indices
+#      The result aligns 1:1 with enrich_cond_tck (WB, or WB ++ ROI_sub(level)),
+#      which is the SAME tractogram the refit branch uses -- so the two branches
+#      differ ONLY in the SIFT2 weights. Built only when sift2_propagated is set.
+# -----------------------------
+rule enrich_propagate_weights:
+    input:
+        weights_max=enrich_weights_max,
+        roi_max_meta=enrich_roi_max_meta,
+        indices=enrich_cond_indices,
+    output:
+        weights=temp(
+            _TMP + "/sub-{subject}_label-{seed}_cond-{cond}_desc-propagated_sift2_weights.txt"
+        ),
+    params:
+        script=lambda wc: PROPAGATE_SCRIPT,
+        indices_path=enrich_indices_path,
+    log:
+        "logs/sub-{subject}/enrichment_sweep/sub-{subject}_label-{seed}_cond-{cond}_propagate_weights.log",
+    threads: 1
+    resources:
+        mem_mb=lambda wc: res("enrich_propagate_weights", "mem_mb", 4000),
+        time=lambda wc: res("enrich_propagate_weights", "time_min", 15),
+    container:
+        config["singularity"]["diffparc"]
+    group:
+        "subj"
+    shell:
+        r"""
+        set -euo pipefail
+        mkdir -p "$(dirname "{output.weights}")"
+        mkdir -p "$(dirname "{log}")"
+
+        python "{params.script}" \
+          --weights-max "{input.weights_max}" \
+          --roi-max-meta "{input.roi_max_meta}" \
+          --indices "{params.indices_path}" \
+          --out-weights "{output.weights}" \
+          &> "{log}"
+        """
+
+
+# -----------------------------
+# (6d) Propagated branch: filter by the seed (node grid), carrying propagated weights.
+#      Identical to enrich_filter_tractogram except for the weights and the
+#      `_sift2-propagated` tag.
+# -----------------------------
+rule enrich_filter_tractogram_propagated:
+    input:
+        tractogram=enrich_cond_tck,
+        sift2_weights=rules.enrich_propagate_weights.output.weights,
+        seed_mask=rules.reslice_seed_to_nodegrid.output.mask,
+    output:
+        tractogram=temp(
+            _TMP + "/sub-{subject}_hemi-{hemi}_label-{seed}_cond-{cond}"
+            "_sift2-propagated_desc-seedfiltered_tractography.tck"
+        ),
+        sift2_weights=temp(
+            _TMP + "/sub-{subject}_hemi-{hemi}_label-{seed}_cond-{cond}"
+            "_sift2-propagated_desc-seedfiltered_sift2_weights.txt"
+        ),
+        tckinfo=(
+            _QC + "/sub-{subject}_hemi-{hemi}_label-{seed}_cond-{cond}"
+            "_sift2-propagated_desc-seedfiltered_tckinfo.txt"
+        ),
+    log:
+        "logs/sub-{subject}/enrichment_sweep/sub-{subject}_hemi-{hemi}_label-{seed}_cond-{cond}_sift2-propagated_filter_tractogram.log",
+    benchmark:
+        "benchmarks/sub-{subject}/enrichment_sweep/sub-{subject}_hemi-{hemi}_label-{seed}_cond-{cond}_sift2-propagated_filter_tractogram.tsv"
+    threads: lambda wc: res("enrich_filter_tractogram_propagated", "threads", 2)
+    resources:
+        mem_mb=lambda wc: res("enrich_filter_tractogram_propagated", "mem_mb", 16000),
+        time=lambda wc: res("enrich_filter_tractogram_propagated", "time_min", 60),
+    container:
+        config["singularity"]["diffparc"]
+    group:
+        "subj"
+    shell:
+        r"""
+        set -euo pipefail
+        mkdir -p "$(dirname "{output.tractogram}")"
+        mkdir -p "$(dirname "{output.tckinfo}")"
+        mkdir -p "$(dirname "{log}")"
+
+        tckedit "{input.tractogram}" "{output.tractogram}" \
+          -include "{input.seed_mask}" \
+          -ends_only \
+          -tck_weights_in "{input.sift2_weights}" \
+          -tck_weights_out "{output.sift2_weights}" \
+          &> "{log}"
+
+        tckinfo "{output.tractogram}" > "{output.tckinfo}" 2>> "{log}"
+        """
+
+
+# -----------------------------
+# (6e) Propagated branch: voxelwise connectivity fingerprint (uncorrected).
+#      Same connectome logic as enrich_voxelwise_connectivity; `_sift2-propagated`
+#      tag keeps its paths disjoint from the refit branch.
+# -----------------------------
+rule enrich_voxelwise_connectivity_propagated:
+    input:
+        tractogram=rules.enrich_filter_tractogram_propagated.output.tractogram,
+        sift2_weights=rules.enrich_filter_tractogram_propagated.output.sift2_weights,
+        nodes=rules.build_seed_nodes.output.nodes,
+        seed_voxel_index=rules.build_seed_nodes.output.seed_voxel_index,
+    output:
+        connectivity_matrix=(
+            _TRACTS + "/sub-{subject}_hemi-{hemi}_label-{seed}_cond-{cond}"
+            "_sift2-propagated_desc-{targets}_connectivity_matrix.csv"
+        ),
+        assignments=(
+            _QC + "/sub-{subject}_hemi-{hemi}_label-{seed}_cond-{cond}"
+            "_sift2-propagated_desc-{targets}_method-mrtrix_assignments.txt"
+        ),
+        qc_metrics=(
+            _QC + "/sub-{subject}_hemi-{hemi}_label-{seed}_cond-{cond}"
+            "_sift2-propagated_desc-{targets}_connectivity_qc.json"
+        ),
+        connectome_full=temp(
+            _TMP + "/sub-{subject}_hemi-{hemi}_label-{seed}_cond-{cond}"
+            "_sift2-propagated_desc-{targets}_connectome_full.txt"
+        ),
+    log:
+        "logs/sub-{subject}/enrichment_sweep/sub-{subject}_hemi-{hemi}_label-{seed}_cond-{cond}_sift2-propagated_desc-{targets}_voxelwise_connectivity.log",
+    benchmark:
+        "benchmarks/sub-{subject}/enrichment_sweep/sub-{subject}_hemi-{hemi}_label-{seed}_cond-{cond}_sift2-propagated_desc-{targets}_voxelwise_connectivity.tsv"
+    params:
+        slice_script=lambda wc: SLICE_BLOCK_SCRIPT,
+        target_labels=lambda wc: ",".join(config["targets"][wc.targets]["labels"]),
+        target_search_radius=lambda wc: config.get("mrtrix", {}).get("target_search_radius", 4),
+    threads: lambda wc: res("enrich_voxelwise_connectivity_propagated", "threads", 2)
+    resources:
+        mem_mb=lambda wc: res("enrich_voxelwise_connectivity_propagated", "mem_mb", 8000),
+        time=lambda wc: res("enrich_voxelwise_connectivity_propagated", "time_min", 30),
+    container:
+        config["singularity"]["diffparc"]
+    group:
+        "subj"
+    shell:
+        r"""
+        set -euo pipefail
+        mkdir -p "$(dirname "{output.connectivity_matrix}")"
+        mkdir -p "$(dirname "{output.assignments}")"
+        mkdir -p "$(dirname "{output.connectome_full}")"
+        mkdir -p "$(dirname "{log}")"
+
+        tck2connectome -nthreads {threads} -force -symmetric \
+          -assignment_radial_search {params.target_search_radius} \
+          -tck_weights_in "{input.sift2_weights}" \
+          -out_assignments "{output.assignments}" \
+          "{input.tractogram}" "{input.nodes}" "{output.connectome_full}" \
+          &> "{log}"
+
+        python "{params.slice_script}" \
+          --connectome "{output.connectome_full}" \
+          --voxel-index "{input.seed_voxel_index}" \
+          --header "{params.target_labels}" \
+          --out-matrix "{output.connectivity_matrix}" \
+          --out-qc "{output.qc_metrics}" \
+          &>> "{log}"
+        """
+
+
+# -----------------------------
+# (6f) Propagated branch + volume-bias correction (only requested when BOTH
+#      sift2_propagated AND volume_bias_correction are set). Mirrors
+#      enrich_voxelwise_connectivity_invnodevol on the propagated weights.
+# -----------------------------
+rule enrich_voxelwise_connectivity_propagated_invnodevol:
+    input:
+        tractogram=rules.enrich_filter_tractogram_propagated.output.tractogram,
+        sift2_weights=rules.enrich_filter_tractogram_propagated.output.sift2_weights,
+        nodes=rules.build_seed_nodes.output.nodes,
+        seed_voxel_index=rules.build_seed_nodes.output.seed_voxel_index,
+    output:
+        connectivity_matrix=(
+            _TRACTS + "/sub-{subject}_hemi-{hemi}_label-{seed}_cond-{cond}"
+            "_sift2-propagated_scale-invnodevol_desc-{targets}_connectivity_matrix.csv"
+        ),
+        qc_metrics=(
+            _QC + "/sub-{subject}_hemi-{hemi}_label-{seed}_cond-{cond}"
+            "_sift2-propagated_scale-invnodevol_desc-{targets}_connectivity_qc.json"
+        ),
+        connectome_full=temp(
+            _TMP + "/sub-{subject}_hemi-{hemi}_label-{seed}_cond-{cond}"
+            "_sift2-propagated_scale-invnodevol_desc-{targets}_connectome_full.txt"
+        ),
+    log:
+        "logs/sub-{subject}/enrichment_sweep/sub-{subject}_hemi-{hemi}_label-{seed}_cond-{cond}_sift2-propagated_scale-invnodevol_desc-{targets}_voxelwise_connectivity.log",
+    benchmark:
+        "benchmarks/sub-{subject}/enrichment_sweep/sub-{subject}_hemi-{hemi}_label-{seed}_cond-{cond}_sift2-propagated_scale-invnodevol_desc-{targets}_voxelwise_connectivity.tsv"
+    params:
+        slice_script=lambda wc: SLICE_BLOCK_SCRIPT,
+        target_labels=lambda wc: ",".join(config["targets"][wc.targets]["labels"]),
+        target_search_radius=lambda wc: config.get("mrtrix", {}).get("target_search_radius", 4),
+    threads: lambda wc: res("enrich_voxelwise_connectivity_propagated_invnodevol", "threads", 2)
+    resources:
+        mem_mb=lambda wc: res("enrich_voxelwise_connectivity_propagated_invnodevol", "mem_mb", 8000),
+        time=lambda wc: res("enrich_voxelwise_connectivity_propagated_invnodevol", "time_min", 30),
+    container:
+        config["singularity"]["diffparc"]
+    group:
+        "subj"
+    shell:
+        r"""
+        set -euo pipefail
+        mkdir -p "$(dirname "{output.connectivity_matrix}")"
+        mkdir -p "$(dirname "{output.qc_metrics}")"
+        mkdir -p "$(dirname "{output.connectome_full}")"
+        mkdir -p "$(dirname "{log}")"
+
+        tck2connectome -nthreads {threads} -force -symmetric \
+          -scale_invnodevol \
+          -assignment_radial_search {params.target_search_radius} \
+          -tck_weights_in "{input.sift2_weights}" \
+          "{input.tractogram}" "{input.nodes}" "{output.connectome_full}" \
+          &> "{log}"
+
+        python "{params.slice_script}" \
+          --connectome "{output.connectome_full}" \
+          --voxel-index "{input.seed_voxel_index}" \
+          --header "{params.target_labels}" \
+          --out-matrix "{output.connectivity_matrix}" \
+          --out-qc "{output.qc_metrics}" \
+          &>> "{log}"
+        """
+
+
+# -----------------------------
 # (7) Per-condition metrics row (logging only)
 # -----------------------------
 rule enrich_condition_row:
@@ -607,6 +895,29 @@ rule enrich_summary:
 # -----------------------------
 # Convenience aggregate target (also wired into `rule all` via Snakefile helper)
 # -----------------------------
+def _enrich_fingerprint_outputs():
+    """Connectivity-fingerprint CSV targets across both SIFT2 branches and the
+    optional volume-bias correction. Kept in sync with get_enrichment_sweep_outputs()
+    in the Snakefile (that helper runs at parse time, before this module is included,
+    so the two cannot share code)."""
+    def fp(extra_tag):
+        return expand(
+            _TRACTS + "/sub-{subject}_hemi-{hemi}_label-{seed}_cond-{cond}"
+            + extra_tag + "_desc-{targets}_connectivity_matrix.csv",
+            subject=ENRICH_SUBJECTS, seed=ENRICH_SEED, hemi=ENRICH_HEMIS,
+            cond=ENRICH_CONDS, targets=ENRICH_TARGETS,
+        )
+
+    out = list(fp(""))                              # refit branch, uncorrected
+    if ENRICH_VOLNORM:
+        out += fp("_scale-invnodevol")              # refit branch, volume-bias-corrected
+    if ENRICH_SIFT2_PROP:
+        out += fp("_sift2-propagated")              # propagated branch, uncorrected
+        if ENRICH_VOLNORM:
+            out += fp("_sift2-propagated_scale-invnodevol")  # propagated branch, vbc
+    return out
+
+
 rule all_enrichment_sweep:
     input:
         (
@@ -614,19 +925,5 @@ rule all_enrichment_sweep:
                 _QC + "/sub-{subject}_label-{seed}_enrichment_sweep_summary.csv",
                 subject=ENRICH_SUBJECTS, seed=ENRICH_SEED,
             )
-            + expand(
-                _TRACTS + "/sub-{subject}_hemi-{hemi}_label-{seed}_cond-{cond}"
-                "_desc-{targets}_connectivity_matrix.csv",
-                subject=ENRICH_SUBJECTS, seed=ENRICH_SEED, hemi=ENRICH_HEMIS,
-                cond=ENRICH_CONDS, targets=ENRICH_TARGETS,
-            )
-            + (
-                expand(
-                    _TRACTS + "/sub-{subject}_hemi-{hemi}_label-{seed}_cond-{cond}"
-                    "_scale-invnodevol_desc-{targets}_connectivity_matrix.csv",
-                    subject=ENRICH_SUBJECTS, seed=ENRICH_SEED, hemi=ENRICH_HEMIS,
-                    cond=ENRICH_CONDS, targets=ENRICH_TARGETS,
-                )
-                if ENRICH_VOLNORM else []
-            )
+            + _enrich_fingerprint_outputs()
         ) if ENRICH_ENABLED else [],

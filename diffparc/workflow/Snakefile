@@ -271,7 +271,34 @@ def get_enrichment_sweep_outputs():
             targets=targets,
         )
 
-    return summaries + fingerprints + fingerprints_invnodevol
+    # Optional second SIFT2 branch ("propagated"): same conditions, but weights
+    # fit once on the maximal tractogram and carried down the nested subsample.
+    # Adds its own volume-bias-corrected variant when both switches are on.
+    fingerprints_propagated = []
+    if es.get("sift2_propagated", False):
+        fingerprints_propagated = expand(
+            "sub-{subject}/tracts/enrichment_sweep/"
+            "sub-{subject}_hemi-{hemi}_label-{seed}_cond-{cond}"
+            "_sift2-propagated_desc-{targets}_connectivity_matrix.csv",
+            subject=subjects,
+            seed=seed,
+            hemi=hemis,
+            cond=conds,
+            targets=targets,
+        )
+        if es.get("volume_bias_correction", False):
+            fingerprints_propagated += expand(
+                "sub-{subject}/tracts/enrichment_sweep/"
+                "sub-{subject}_hemi-{hemi}_label-{seed}_cond-{cond}"
+                "_sift2-propagated_scale-invnodevol_desc-{targets}_connectivity_matrix.csv",
+                subject=subjects,
+                seed=seed,
+                hemi=hemis,
+                cond=conds,
+                targets=targets,
+            )
+
+    return summaries + fingerprints + fingerprints_invnodevol + fingerprints_propagated
 
 # -----------------------------
 # Main target for your current use case
