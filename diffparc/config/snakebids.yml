@@ -4,6 +4,9 @@
 #enable printing debug statements during parsing -- disable if generating dag visualization
 debug: True
 root: ''
+# Scratch for temp tractograms/intermediates. Override per-deployment with the
+# DIFFPARC_TMPDIR env var (see Snakefile). On HPC use a SHARED-filesystem path,
+# not node-local $SLURM_TMPDIR.
 tmp_dir: '/tmp'
 
 # boilerplate above
@@ -220,7 +223,10 @@ parse_args:
 #---- to update below this
 
 singularity:
- #diffparc: 'docker://khanlab/diffparc-deps:v0.1.0-fix' 
+ # Deployment-specific path. Override per-machine with the DIFFPARC_CONTAINER env
+ # var (see Snakefile) instead of editing this tracked default, e.g. on Compute
+ # Canada: export DIFFPARC_CONTAINER=$SCRATCH/containers/diffparc-deps_with_fsl.sif
+ #diffparc: 'docker://khanlab/diffparc-deps:v0.1.0-fix'
  #diffparc: '/scratch/Tools/container_apps/diffparc-deps_with_fsl.sif'
   diffparc: "/scratch/Tools/diffparc-surf/diffparc/resources/apptainer/diffparc-deps_with_fsl.sif"
 
@@ -1034,7 +1040,7 @@ tractography_qc_seed: 42             # RNG seed for that random subset (reproduc
 # connectomes (tck2connectome -scale_file -stat_edge mean). MAIN connectivity only;
 # additive. RD map + per-streamline samples are preserved. Off by default.
 # -----------------------------------------------------------------------------
-microstructure_connectomes: False
+microstructure_connectomes: True
 microstructure_connectomes_targets:
   - Yeo7TianS3
 microstructure_connectomes_metrics:
@@ -1063,7 +1069,7 @@ enrichment_sweep:
                              #  1000 ⊂ 3000 ⊂ 5000)
   targets:                   # atlas(es) for the per-condition voxelwise connectivity fingerprint
     - Yeo7TianS3
-  volume_bias_correction: False  # also emit a volume-bias-corrected fingerprint
+  volume_bias_correction: True  # also emit a volume-bias-corrected fingerprint
                                  # (tck2connectome -scale_invnodevol) per condition,
                                  # alongside the uncorrected one. Off by default.
   sift2_propagated: False    # also emit a SECOND SIFT2 branch: instead of re-fitting

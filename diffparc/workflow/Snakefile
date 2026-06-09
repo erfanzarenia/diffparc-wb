@@ -55,6 +55,27 @@ config.setdefault("eddy", {
 })
 
 # -----------------------------
+# HPC / cluster portability
+# -----------------------------
+# The container (.sif) and scratch (tmp_dir) locations are deployment-specific
+# (the committed defaults point at one lab cluster). Allow both to be overridden
+# from the environment WITHOUT editing tracked config, falling back to the config
+# values when unset (so existing behaviour is unchanged). On Compute Canada:
+#   export DIFFPARC_CONTAINER=/path/to/diffparc-deps_with_fsl.sif
+#   export DIFFPARC_TMPDIR=$SCRATCH/diffparc_tmp   # MUST be on a shared filesystem,
+#                                                  # NOT node-local $SLURM_TMPDIR,
+#                                                  # because temp tractograms are
+#                                                  # tracked across grouped jobs.
+import os as _os
+
+if _os.environ.get("DIFFPARC_CONTAINER"):
+    config.setdefault("singularity", {})
+    config["singularity"]["diffparc"] = _os.environ["DIFFPARC_CONTAINER"]
+
+if _os.environ.get("DIFFPARC_TMPDIR"):
+    config["tmp_dir"] = _os.environ["DIFFPARC_TMPDIR"]
+
+# -----------------------------
 # Basic config normalization
 # -----------------------------
 if config.get("anat_only", False):
