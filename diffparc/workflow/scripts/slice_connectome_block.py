@@ -36,6 +36,9 @@ def main():
                     help="Comma-separated target labels (defines n_targets/order).")
     ap.add_argument("--out-matrix", required=True)
     ap.add_argument("--out-qc", required=False)
+    ap.add_argument("--empty", action="store_true",
+                    help="Degenerate empty tractogram (0 streamlines): write a zero "
+                         "(n_seed x n_targets) matrix without reading --connectome.")
     args = ap.parse_args()
 
     labels = [s.strip() for s in args.header.split(",") if s.strip()]
@@ -48,18 +51,21 @@ def main():
     if n_seed <= 0:
         sys.exit(f"voxel index has no data rows: {args.voxel_index}")
 
-    mat = np.atleast_2d(np.loadtxt(args.connectome))
     n_total = n_targets + n_seed
-    if mat.shape != (n_total, n_total):
-        sys.exit(
-            f"connectome is {mat.shape}, expected ({n_total}, {n_total}) "
-            f"= n_targets({n_targets}) + n_seed({n_seed}). "
-            "A size mismatch usually means a seed voxel id collided with the "
-            "atlas range; check that atlas labels are within 1..n_targets."
-        )
-
-    # rows = seed voxels, cols = atlas targets
-    block = mat[n_targets:n_total, 0:n_targets]
+    if args.empty:
+        # 0-streamline tractogram: every seed-voxel x target edge is 0.
+        block = np.zeros((n_seed, n_targets), dtype=float)
+    else:
+        mat = np.atleast_2d(np.loadtxt(args.connectome))
+        if mat.shape != (n_total, n_total):
+            sys.exit(
+                f"connectome is {mat.shape}, expected ({n_total}, {n_total}) "
+                f"= n_targets({n_targets}) + n_seed({n_seed}). "
+                "A size mismatch usually means a seed voxel id collided with the "
+                "atlas range; check that atlas labels are within 1..n_targets."
+            )
+        # rows = seed voxels, cols = atlas targets
+        block = mat[n_targets:n_total, 0:n_targets]
 
     os.makedirs(os.path.dirname(args.out_matrix) or ".", exist_ok=True)
     np.savetxt(args.out_matrix, block, delimiter=",",
@@ -72,7 +78,7 @@ def main():
                 {
                     "n_seed_voxels": int(n_seed),
                     "n_targets": int(n_targets),
-                    "connectome_shape": [int(x) for x in mat.shape],
+                    "connectome_shape": [n_total, n_total],
                     "block_shape": [int(x) for x in block.shape],
                     "seed_voxels_with_any_connection": int(
                         (block.sum(axis=1) > 0).sum()

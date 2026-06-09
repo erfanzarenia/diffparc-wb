@@ -487,20 +487,34 @@ rule enrich_voxelwise_connectivity:
         mkdir -p "$(dirname "{output.connectome_full}")"
         mkdir -p "$(dirname "{log}")"
 
-        tck2connectome -nthreads {threads} -force -symmetric \
-          -assignment_radial_search {params.target_search_radius} \
-          -tck_weights_in "{input.sift2_weights}" \
-          -out_assignments "{output.assignments}" \
-          "{input.tractogram}" "{input.nodes}" "{output.connectome_full}" \
-          &> "{log}"
+        if grep -q '[0-9]' "{input.sift2_weights}"; then
+          tck2connectome -nthreads {threads} -force -symmetric \
+            -assignment_radial_search {params.target_search_radius} \
+            -tck_weights_in "{input.sift2_weights}" \
+            -out_assignments "{output.assignments}" \
+            "{input.tractogram}" "{input.nodes}" "{output.connectome_full}" \
+            &> "{log}"
 
-        python "{params.slice_script}" \
-          --connectome "{output.connectome_full}" \
-          --voxel-index "{input.seed_voxel_index}" \
-          --header "{params.target_labels}" \
-          --out-matrix "{output.connectivity_matrix}" \
-          --out-qc "{output.qc_metrics}" \
-          &>> "{log}"
+          python "{params.slice_script}" \
+            --connectome "{output.connectome_full}" \
+            --voxel-index "{input.seed_voxel_index}" \
+            --header "{params.target_labels}" \
+            --out-matrix "{output.connectivity_matrix}" \
+            --out-qc "{output.qc_metrics}" \
+            &>> "{log}"
+        else
+          echo "empty seed-filtered tractogram (0 streamlines): writing zero connectome" > "{log}"
+          : > "{output.connectome_full}"
+          : > "{output.assignments}"
+          python "{params.slice_script}" \
+            --connectome "{output.connectome_full}" \
+            --voxel-index "{input.seed_voxel_index}" \
+            --header "{params.target_labels}" \
+            --out-matrix "{output.connectivity_matrix}" \
+            --out-qc "{output.qc_metrics}" \
+            --empty \
+            &>> "{log}"
+        fi
         """
 
 
@@ -561,20 +575,33 @@ rule enrich_voxelwise_connectivity_invnodevol:
         mkdir -p "$(dirname "{output.connectome_full}")"
         mkdir -p "$(dirname "{log}")"
 
-        tck2connectome -nthreads {threads} -force -symmetric \
-          -scale_invnodevol \
-          -assignment_radial_search {params.target_search_radius} \
-          -tck_weights_in "{input.sift2_weights}" \
-          "{input.tractogram}" "{input.nodes}" "{output.connectome_full}" \
-          &> "{log}"
+        if grep -q '[0-9]' "{input.sift2_weights}"; then
+          tck2connectome -nthreads {threads} -force -symmetric \
+            -scale_invnodevol \
+            -assignment_radial_search {params.target_search_radius} \
+            -tck_weights_in "{input.sift2_weights}" \
+            "{input.tractogram}" "{input.nodes}" "{output.connectome_full}" \
+            &> "{log}"
 
-        python "{params.slice_script}" \
-          --connectome "{output.connectome_full}" \
-          --voxel-index "{input.seed_voxel_index}" \
-          --header "{params.target_labels}" \
-          --out-matrix "{output.connectivity_matrix}" \
-          --out-qc "{output.qc_metrics}" \
-          &>> "{log}"
+          python "{params.slice_script}" \
+            --connectome "{output.connectome_full}" \
+            --voxel-index "{input.seed_voxel_index}" \
+            --header "{params.target_labels}" \
+            --out-matrix "{output.connectivity_matrix}" \
+            --out-qc "{output.qc_metrics}" \
+            &>> "{log}"
+        else
+          echo "empty seed-filtered tractogram (0 streamlines): writing zero connectome" > "{log}"
+          : > "{output.connectome_full}"
+          python "{params.slice_script}" \
+            --connectome "{output.connectome_full}" \
+            --voxel-index "{input.seed_voxel_index}" \
+            --header "{params.target_labels}" \
+            --out-matrix "{output.connectivity_matrix}" \
+            --out-qc "{output.qc_metrics}" \
+            --empty \
+            &>> "{log}"
+        fi
         """
 
 
@@ -730,20 +757,34 @@ rule enrich_voxelwise_connectivity_propagated:
         mkdir -p "$(dirname "{output.connectome_full}")"
         mkdir -p "$(dirname "{log}")"
 
-        tck2connectome -nthreads {threads} -force -symmetric \
-          -assignment_radial_search {params.target_search_radius} \
-          -tck_weights_in "{input.sift2_weights}" \
-          -out_assignments "{output.assignments}" \
-          "{input.tractogram}" "{input.nodes}" "{output.connectome_full}" \
-          &> "{log}"
+        if grep -q '[0-9]' "{input.sift2_weights}"; then
+          tck2connectome -nthreads {threads} -force -symmetric \
+            -assignment_radial_search {params.target_search_radius} \
+            -tck_weights_in "{input.sift2_weights}" \
+            -out_assignments "{output.assignments}" \
+            "{input.tractogram}" "{input.nodes}" "{output.connectome_full}" \
+            &> "{log}"
 
-        python "{params.slice_script}" \
-          --connectome "{output.connectome_full}" \
-          --voxel-index "{input.seed_voxel_index}" \
-          --header "{params.target_labels}" \
-          --out-matrix "{output.connectivity_matrix}" \
-          --out-qc "{output.qc_metrics}" \
-          &>> "{log}"
+          python "{params.slice_script}" \
+            --connectome "{output.connectome_full}" \
+            --voxel-index "{input.seed_voxel_index}" \
+            --header "{params.target_labels}" \
+            --out-matrix "{output.connectivity_matrix}" \
+            --out-qc "{output.qc_metrics}" \
+            &>> "{log}"
+        else
+          echo "empty seed-filtered tractogram (0 streamlines): writing zero connectome" > "{log}"
+          : > "{output.connectome_full}"
+          : > "{output.assignments}"
+          python "{params.slice_script}" \
+            --connectome "{output.connectome_full}" \
+            --voxel-index "{input.seed_voxel_index}" \
+            --header "{params.target_labels}" \
+            --out-matrix "{output.connectivity_matrix}" \
+            --out-qc "{output.qc_metrics}" \
+            --empty \
+            &>> "{log}"
+        fi
         """
 
 
@@ -795,20 +836,33 @@ rule enrich_voxelwise_connectivity_propagated_invnodevol:
         mkdir -p "$(dirname "{output.connectome_full}")"
         mkdir -p "$(dirname "{log}")"
 
-        tck2connectome -nthreads {threads} -force -symmetric \
-          -scale_invnodevol \
-          -assignment_radial_search {params.target_search_radius} \
-          -tck_weights_in "{input.sift2_weights}" \
-          "{input.tractogram}" "{input.nodes}" "{output.connectome_full}" \
-          &> "{log}"
+        if grep -q '[0-9]' "{input.sift2_weights}"; then
+          tck2connectome -nthreads {threads} -force -symmetric \
+            -scale_invnodevol \
+            -assignment_radial_search {params.target_search_radius} \
+            -tck_weights_in "{input.sift2_weights}" \
+            "{input.tractogram}" "{input.nodes}" "{output.connectome_full}" \
+            &> "{log}"
 
-        python "{params.slice_script}" \
-          --connectome "{output.connectome_full}" \
-          --voxel-index "{input.seed_voxel_index}" \
-          --header "{params.target_labels}" \
-          --out-matrix "{output.connectivity_matrix}" \
-          --out-qc "{output.qc_metrics}" \
-          &>> "{log}"
+          python "{params.slice_script}" \
+            --connectome "{output.connectome_full}" \
+            --voxel-index "{input.seed_voxel_index}" \
+            --header "{params.target_labels}" \
+            --out-matrix "{output.connectivity_matrix}" \
+            --out-qc "{output.qc_metrics}" \
+            &>> "{log}"
+        else
+          echo "empty seed-filtered tractogram (0 streamlines): writing zero connectome" > "{log}"
+          : > "{output.connectome_full}"
+          python "{params.slice_script}" \
+            --connectome "{output.connectome_full}" \
+            --voxel-index "{input.seed_voxel_index}" \
+            --header "{params.target_labels}" \
+            --out-matrix "{output.connectivity_matrix}" \
+            --out-qc "{output.qc_metrics}" \
+            --empty \
+            &>> "{log}"
+        fi
         """
 
 

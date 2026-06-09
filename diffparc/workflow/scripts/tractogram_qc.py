@@ -19,6 +19,7 @@ anatomical background. No connectivity math; QC only.
 
 import argparse
 import os
+import shutil
 import subprocess
 
 import numpy as np
@@ -29,6 +30,25 @@ def run(cmd):
     """Run a command, echoing it; inherits stdout/stderr (rule redirects to log)."""
     print("+ " + " ".join(str(c) for c in cmd), flush=True)
     subprocess.run([str(c) for c in cmd], check=True)
+
+
+def tck_count(path):
+    """Streamline count from the .tck ASCII header (cheap). None if unparseable."""
+    try:
+        with open(path, "rb") as f:
+            head = b""
+            while b"END" not in head and len(head) < 100000:
+                chunk = f.read(4096)
+                if not chunk:
+                    break
+                head += chunk
+        text = head.split(b"END", 1)[0].decode("utf-8", "ignore")
+        for line in text.splitlines():
+            if line.strip().lower().startswith("count:"):
+                return int(line.split(":", 1)[1].strip())
+    except Exception:
+        return None
+    return None
 
 
 def reservoir_subsample(in_tck, out_tck, n_keep, seed):
@@ -110,6 +130,22 @@ def main():
         os.makedirs(os.path.dirname(p) or ".", exist_ok=True)
 
     nt = ["-nthreads", args.nthreads]
+
+    # Degenerate guard: tckmap/tckstats abort on a zero-streamline tractogram
+    # (e.g. a whole-brain baseline filtered to a tiny seed in a low-streamline
+    # trial run). ONLY when the header count is explicitly 0 do we emit placeholder
+    # map outputs + a valid empty subset and stop. A non-empty -- or unparseable --
+    # count falls through to the normal path below, completely unchanged.
+    if tck_count(args.tck) == 0:
+        for p in (args.out_tdi, args.out_endpoints, args.out_dec):
+            open(p, "wb").close()
+        with open(args.out_lengths_csv, "w") as fh:
+            fh.write("# empty tractogram: 0 streamlines\n")
+        shutil.copyfile(args.tck, args.out_subset)  # valid 0-streamline .tck
+        plot_length_hist([], args.out_lengths_png, 0)
+        print("tractogram_qc: empty tractogram (0 streamlines); wrote placeholders",
+              flush=True)
+        return
 
     # 1. TDI (unweighted track-count density)
     run(["tckmap", "-force", *nt, "-template", args.template,
