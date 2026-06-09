@@ -21,7 +21,6 @@ rule wb_tckgen_chunk:
         wm_fod=get_fod_for_tracking,
         mask=bids(root=root, datatype="dwi", suffix="mask.mif", **subj_wildcards),
         five_tt=rules.act_5ttgen.output.five_tt,
-        gmwmi=rules.act_gmwmi.output.gmwmi,
     params:
         step=lambda wc: config.get("mrtrix", {}).get("step", 0.35),
         angle=lambda wc: config.get("mrtrix", {}).get("angle", 45),
@@ -59,7 +58,7 @@ rule wb_tckgen_chunk:
           -act "{input.five_tt}" \
           -backtrack \
           -crop_at_gmwmi \
-          -seed_gmwmi "{input.gmwmi}" \
+          -seed_dynamic "{input.wm_fod}" \
           -mask "{input.mask}" \
           -step {params.step} -angle {params.angle} \
           -minlength {params.minlength} -maxlength {params.maxlength} \
