@@ -132,6 +132,90 @@ rule dwibiascorrect:
         """
 
 
+rule upsample_dwi:
+    input:
+        dwi=get_dwi_for_csd,
+    output:
+        dwi=temp(
+            bids(
+                root=root,
+                datatype="dwi",
+                desc="upsampled",
+                suffix="dwi.mif",
+                **subj_wildcards,
+            )
+        ),
+    params:
+        vox=lambda wc: config.get("dwi_upsample_vox", 1.25),
+    log:
+        "logs/sub-{subject}/dwi/sub-{subject}_upsample_dwi.log",
+    threads: lambda wc: res("upsample_dwi", "threads", 4)
+    resources:
+        mem_mb=lambda wc: res("upsample_dwi", "mem_mb", 16000),
+        time=lambda wc: res("upsample_dwi", "time_min", 30),
+    group:
+        "subj"
+    container:
+        config["singularity"]["diffparc"]
+    shell:
+        r"""
+        set -euo pipefail
+        mkdir -p "$(dirname "{output.dwi}")"
+        mkdir -p "$(dirname "{log}")"
+
+        mrgrid -nthreads {threads} -force "{input.dwi}" regrid \
+          -voxel {params.vox} "{output.dwi}" &> "{log}"
+        """
+
+
+rule upsample_dwi_mask:
+    input:
+        mask=rules.nii2mif.output.mask,
+        template=rules.upsample_dwi.output.dwi,
+    output:
+        mask=bids(
+            root=root,
+            datatype="dwi",
+            desc="upsampled",
+            suffix="mask.mif",
+            **subj_wildcards,
+        ),
+    log:
+        "logs/sub-{subject}/dwi/sub-{subject}_upsample_dwi_mask.log",
+    threads: lambda wc: res("upsample_dwi_mask", "threads", 1)
+    resources:
+        mem_mb=lambda wc: res("upsample_dwi_mask", "mem_mb", 4000),
+        time=lambda wc: res("upsample_dwi_mask", "time_min", 10),
+    group:
+        "subj"
+    container:
+        config["singularity"]["diffparc"]
+    shell:
+        r"""
+        set -euo pipefail
+        mkdir -p "$(dirname "{output.mask}")"
+        mkdir -p "$(dirname "{log}")"
+
+        mrgrid -nthreads {threads} -force "{input.mask}" regrid \
+          -template "{input.template}" -interp nearest "{output.mask}" &> "{log}"
+        """
+
+
+def get_dwi_for_fod(wildcards):
+    # FOD/tracking/SIFT2 branch: upsampled DWI when enabled, else native (bias-
+    # corrected) DWI. Tensor branch deliberately stays native via get_dwi_for_csd.
+    if config.get("dwi_upsample", False):
+        return rules.upsample_dwi.output.dwi
+    return get_dwi_for_csd(wildcards)
+
+
+def get_mask_for_fod(wildcards):
+    # Brain mask matched to the FOD grid (upsampled when enabled, else native).
+    if config.get("dwi_upsample", False):
+        return rules.upsample_dwi_mask.output.mask
+    return rules.nii2mif.output.mask
+
+
 rule dseg_nii2mif:
     input:
         "{file}_dseg.nii.gz",
@@ -148,8 +232,8 @@ rule dseg_nii2mif:
 rule dwi2response_msmt:
     # Dhollander, T.; Mito, R.; Raffelt, D. & Connelly, A. Improved white matter response function estimation for 3-tissue constrained spherical deconvolution. Proc Intl Soc Mag Reson Med, 2019, 555
     input:
-        dwi=get_dwi_for_csd,
-        mask=rules.nii2mif.output.mask,
+        dwi=get_dwi_for_fod,
+        mask=get_mask_for_fod,
     output:
         wm_rf=bids(
             root=root,
@@ -192,8 +276,8 @@ rule dwi2response_msmt:
 rule dwi2fod_msmt:
     # Jeurissen, B; Tournier, J-D; Dhollander, T; Connelly, A & Sijbers, J. Multi-tissue constrained spherical deconvolution for improved analysis of multi-shell diffusion MRI data. NeuroImage, 2014, 103, 411-426
     input:
-        dwi=get_dwi_for_csd,
-        mask=rules.nii2mif.output.mask,
+        dwi=get_dwi_for_fod,
+        mask=get_mask_for_fod,
         wm_rf=rules.dwi2response_msmt.output.wm_rf,
         gm_rf=rules.dwi2response_msmt.output.gm_rf,
         csf_rf=rules.dwi2response_msmt.output.csf_rf,
@@ -243,7 +327,7 @@ rule mtnormalise:
         wm_fod=rules.dwi2fod_msmt.output.wm_fod,
         gm_fod=rules.dwi2fod_msmt.output.gm_fod,
         csf_fod=rules.dwi2fod_msmt.output.csf_fod,
-        mask=rules.nii2mif.output.mask,
+        mask=get_mask_for_fod,
     output:
         wm_fod=bids(
             root=root,

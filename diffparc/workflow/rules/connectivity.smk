@@ -346,7 +346,7 @@ rule fod2dec:
     """FOD-based DEC map: anatomical background for overlaying tractograms in mrview."""
     input:
         fod=get_fod_for_tracking,
-        mask=bids(root=root, datatype="dwi", suffix="mask.mif", **subj_wildcards),
+        mask=get_mask_for_fod,
     output:
         decmap="sub-{subject}/qc/connectivity/sub-{subject}_desc-fod_decmap.mif",
     log:

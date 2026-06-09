@@ -774,7 +774,7 @@ seeds:
 ###    normalize_percentile: 95
   vtasnc:
     template_probseg: resources/tpl-MNI152NLin2009cAsym/CIT168_prob/vtasnc_hemi-{hemi}_probseg.nii.gz
-    probseg_threshold: 0.3
+    probseg_threshold: 0.05
     probseg_resample: '200%'
 ###    surface_decimate_percent: 0
     use_synthseg: False
@@ -799,7 +799,7 @@ seeds:
   # The template_probseg files are generated once by workflow/scripts/generate_probsegs.py
   snc:
     template_probseg: resources/tpl-MNI152NLin2009cAsym/CIT168_prob/snc_hemi-{hemi}_probseg.nii.gz
-    probseg_threshold: 0.3
+    probseg_threshold: 0.05
     probseg_resample: '200%'
     use_synthseg: False
     targets:
@@ -811,7 +811,7 @@ seeds:
     normalize_percentile: 95
   vtapbp:
     template_probseg: resources/tpl-MNI152NLin2009cAsym/CIT168_prob/vtapbp_hemi-{hemi}_probseg.nii.gz
-    probseg_threshold: 0.3
+    probseg_threshold: 0.05
     probseg_resample: '200%'
     use_synthseg: False
     targets:
@@ -823,7 +823,7 @@ seeds:
     normalize_percentile: 95
   vtasncpbp:
     template_probseg: resources/tpl-MNI152NLin2009cAsym/CIT168_prob/vtasncpbp_hemi-{hemi}_probseg.nii.gz
-    probseg_threshold: 0.3
+    probseg_threshold: 0.05
     probseg_resample: '200%'
     use_synthseg: False
     targets:
@@ -915,6 +915,9 @@ volume_metrics:
 #tractography parameters
 fod_algorithm: msmt_csd
 
+dwi_upsample: true
+dwi_upsample_vox: 1.25   # mm, isotropic
+
 enable_global_conn: true
 disable_voxelwise_conn: true
 
@@ -955,6 +958,8 @@ methods:
 mrtrix:
   step: 0.75
   angle: 45
+  step: 0.625
+  angle: 37
   minlength: 10
   maxlength: 250
   cutoff: 0.06
