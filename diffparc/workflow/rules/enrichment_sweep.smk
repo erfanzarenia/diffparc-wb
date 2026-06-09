@@ -244,7 +244,7 @@ rule enrich_roi_subsample:
         tck=rules.enrich_roi_merge_max.output.tck,
     output:
         tck=temp(ROI_SUB),
-        count=_QC + "/sub-{subject}_label-{seed}_level-{level}_roi_count.txt",
+        roi_count=_QC + "/sub-{subject}_label-{seed}_level-{level}_roi_count.txt",
         meta=temp(
             _TMP + "/sub-{subject}_label-{seed}_level-{level}_desc-roi_subsample_meta.json"
         ),
@@ -268,7 +268,7 @@ rule enrich_roi_subsample:
         r"""
         set -euo pipefail
         mkdir -p "$(dirname "{output.tck}")"
-        mkdir -p "$(dirname "{output.count}")"
+        mkdir -p "$(dirname "{output.roi_count}")"
         mkdir -p "$(dirname "{log}")"
 
         python "{params.script}" \
@@ -277,7 +277,7 @@ rule enrich_roi_subsample:
           --level {wildcards.level} \
           --max-level {params.max_level} \
           --seed {params.subsample_seed} \
-          --out-count "{output.count}" \
+          --out-count "{output.roi_count}" \
           --out-meta "{output.meta}" \
           &> "{log}"
         """
