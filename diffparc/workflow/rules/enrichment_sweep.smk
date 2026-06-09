@@ -431,7 +431,7 @@ rule enrich_filter_tractogram:
             "_desc-seedfiltered_sift2_weights.txt"
         ),
         tckinfo=(
-            _QC + "/sub-{subject}_hemi-{hemi}_label-{seed}_cond-{cond}"
+            _Q_TRACT + "/sub-{subject}_hemi-{hemi}_label-{seed}_cond-{cond}"
             "_desc-seedfiltered_tckinfo.txt"
         ),
     log:
@@ -478,19 +478,19 @@ rule enrich_voxelwise_connectivity:
         mu=rules.enrich_sift2.output.mu,
     output:
         connectivity_matrix=(
-            _TRACTS + "/sub-{subject}_hemi-{hemi}_label-{seed}_cond-{cond}"
+            _T_COND + "/sub-{subject}_hemi-{hemi}_label-{seed}_cond-{cond}"
             "_desc-{targets}_connectivity_matrix.csv"
         ),
         connectivity_matrix_raw=(
-            _TRACTS + "/sub-{subject}_hemi-{hemi}_label-{seed}_cond-{cond}"
+            _Q_CONN + "/sub-{subject}_hemi-{hemi}_label-{seed}_cond-{cond}"
             "_desc-{targets}_meas-raw_connectivity_matrix.csv"
         ),
         assignments=(
-            _QC + "/sub-{subject}_hemi-{hemi}_label-{seed}_cond-{cond}"
+            _Q_CONN + "/sub-{subject}_hemi-{hemi}_label-{seed}_cond-{cond}"
             "_desc-{targets}_method-mrtrix_assignments.txt"
         ),
         qc_metrics=(
-            _QC + "/sub-{subject}_hemi-{hemi}_label-{seed}_cond-{cond}"
+            _Q_CONN + "/sub-{subject}_hemi-{hemi}_label-{seed}_cond-{cond}"
             "_desc-{targets}_connectivity_qc.json"
         ),
         connectome_full=temp(
@@ -579,15 +579,15 @@ rule enrich_voxelwise_connectivity_invnodevol:
         mu=rules.enrich_sift2.output.mu,
     output:
         connectivity_matrix=(
-            _TRACTS + "/sub-{subject}_hemi-{hemi}_label-{seed}_cond-{cond}"
+            _T_COND + "/sub-{subject}_hemi-{hemi}_label-{seed}_cond-{cond}"
             "_scale-invnodevol_desc-{targets}_connectivity_matrix.csv"
         ),
         connectivity_matrix_raw=(
-            _TRACTS + "/sub-{subject}_hemi-{hemi}_label-{seed}_cond-{cond}"
+            _Q_CONN + "/sub-{subject}_hemi-{hemi}_label-{seed}_cond-{cond}"
             "_scale-invnodevol_desc-{targets}_meas-raw_connectivity_matrix.csv"
         ),
         qc_metrics=(
-            _QC + "/sub-{subject}_hemi-{hemi}_label-{seed}_cond-{cond}"
+            _Q_CONN + "/sub-{subject}_hemi-{hemi}_label-{seed}_cond-{cond}"
             "_scale-invnodevol_desc-{targets}_connectivity_qc.json"
         ),
         connectome_full=temp(
@@ -719,7 +719,7 @@ rule enrich_filter_tractogram_propagated:
             "_sift2-propagated_desc-seedfiltered_sift2_weights.txt"
         ),
         tckinfo=(
-            _QC + "/sub-{subject}_hemi-{hemi}_label-{seed}_cond-{cond}"
+            _Q_TRACT + "/sub-{subject}_hemi-{hemi}_label-{seed}_cond-{cond}"
             "_sift2-propagated_desc-seedfiltered_tckinfo.txt"
         ),
     log:
@@ -766,19 +766,19 @@ rule enrich_voxelwise_connectivity_propagated:
         mu=enrich_mu_max,
     output:
         connectivity_matrix=(
-            _TRACTS + "/sub-{subject}_hemi-{hemi}_label-{seed}_cond-{cond}"
+            _T_COND + "/sub-{subject}_hemi-{hemi}_label-{seed}_cond-{cond}"
             "_sift2-propagated_desc-{targets}_connectivity_matrix.csv"
         ),
         connectivity_matrix_raw=(
-            _TRACTS + "/sub-{subject}_hemi-{hemi}_label-{seed}_cond-{cond}"
+            _Q_CONN + "/sub-{subject}_hemi-{hemi}_label-{seed}_cond-{cond}"
             "_sift2-propagated_desc-{targets}_meas-raw_connectivity_matrix.csv"
         ),
         assignments=(
-            _QC + "/sub-{subject}_hemi-{hemi}_label-{seed}_cond-{cond}"
+            _Q_CONN + "/sub-{subject}_hemi-{hemi}_label-{seed}_cond-{cond}"
             "_sift2-propagated_desc-{targets}_method-mrtrix_assignments.txt"
         ),
         qc_metrics=(
-            _QC + "/sub-{subject}_hemi-{hemi}_label-{seed}_cond-{cond}"
+            _Q_CONN + "/sub-{subject}_hemi-{hemi}_label-{seed}_cond-{cond}"
             "_sift2-propagated_desc-{targets}_connectivity_qc.json"
         ),
         connectome_full=temp(
@@ -858,15 +858,15 @@ rule enrich_voxelwise_connectivity_propagated_invnodevol:
         mu=enrich_mu_max,
     output:
         connectivity_matrix=(
-            _TRACTS + "/sub-{subject}_hemi-{hemi}_label-{seed}_cond-{cond}"
+            _T_COND + "/sub-{subject}_hemi-{hemi}_label-{seed}_cond-{cond}"
             "_sift2-propagated_scale-invnodevol_desc-{targets}_connectivity_matrix.csv"
         ),
         connectivity_matrix_raw=(
-            _TRACTS + "/sub-{subject}_hemi-{hemi}_label-{seed}_cond-{cond}"
+            _Q_CONN + "/sub-{subject}_hemi-{hemi}_label-{seed}_cond-{cond}"
             "_sift2-propagated_scale-invnodevol_desc-{targets}_meas-raw_connectivity_matrix.csv"
         ),
         qc_metrics=(
-            _QC + "/sub-{subject}_hemi-{hemi}_label-{seed}_cond-{cond}"
+            _Q_CONN + "/sub-{subject}_hemi-{hemi}_label-{seed}_cond-{cond}"
             "_sift2-propagated_scale-invnodevol_desc-{targets}_connectivity_qc.json"
         ),
         connectome_full=temp(
@@ -949,12 +949,12 @@ rule enrich_qc_tractogram_wb:
         ),
         template=bids(root=root, datatype="dwi", suffix="mask.mif", **subj_wildcards),
     output:
-        tdi=_QC + "/sub-{subject}_label-{seed}_desc-wb_tdi.mif",
-        endpoints=_QC + "/sub-{subject}_label-{seed}_desc-wb_endpoints.mif",
-        decmap=_QC + "/sub-{subject}_label-{seed}_desc-wb_decmap.mif",
-        subset=_QC + "/sub-{subject}_label-{seed}_desc-wb_subset.tck",
-        lengths_csv=_QC + "/sub-{subject}_label-{seed}_desc-wb_lengths.csv",
-        lengths_png=_QC + "/sub-{subject}_label-{seed}_desc-wb_lengths.png",
+        tdi=_QC + "/cond-wb/tractogram/sub-{subject}_label-{seed}_desc-wb_tdi.mif",
+        endpoints=_QC + "/cond-wb/tractogram/sub-{subject}_label-{seed}_desc-wb_endpoints.mif",
+        decmap=_QC + "/cond-wb/tractogram/sub-{subject}_label-{seed}_desc-wb_decmap.mif",
+        subset=_QC + "/cond-wb/tractogram/sub-{subject}_label-{seed}_desc-wb_subset.tck",
+        lengths_csv=_QC + "/cond-wb/tractogram/sub-{subject}_label-{seed}_desc-wb_lengths.csv",
+        lengths_png=_QC + "/cond-wb/tractogram/sub-{subject}_label-{seed}_desc-wb_lengths.png",
     params:
         script=lambda wc: TRACTOGRAM_QC_SCRIPT,
         n_subsample=QC_NSUBSAMPLE,
@@ -1001,12 +1001,12 @@ rule enrich_qc_tractogram_filtered:
         weights=rules.enrich_filter_tractogram.output.sift2_weights,
         template=bids(root=root, datatype="dwi", suffix="mask.mif", **subj_wildcards),
     output:
-        tdi=_QC + "/sub-{subject}_hemi-{hemi}_label-{seed}_cond-{cond}_desc-seedfiltered_tdi.mif",
-        endpoints=_QC + "/sub-{subject}_hemi-{hemi}_label-{seed}_cond-{cond}_desc-seedfiltered_endpoints.mif",
-        decmap=_QC + "/sub-{subject}_hemi-{hemi}_label-{seed}_cond-{cond}_desc-seedfiltered_decmap.mif",
-        subset=_QC + "/sub-{subject}_hemi-{hemi}_label-{seed}_cond-{cond}_desc-seedfiltered_subset.tck",
-        lengths_csv=_QC + "/sub-{subject}_hemi-{hemi}_label-{seed}_cond-{cond}_desc-seedfiltered_lengths.csv",
-        lengths_png=_QC + "/sub-{subject}_hemi-{hemi}_label-{seed}_cond-{cond}_desc-seedfiltered_lengths.png",
+        tdi=_Q_TRACT + "/sub-{subject}_hemi-{hemi}_label-{seed}_cond-{cond}_desc-seedfiltered_tdi.mif",
+        endpoints=_Q_TRACT + "/sub-{subject}_hemi-{hemi}_label-{seed}_cond-{cond}_desc-seedfiltered_endpoints.mif",
+        decmap=_Q_TRACT + "/sub-{subject}_hemi-{hemi}_label-{seed}_cond-{cond}_desc-seedfiltered_decmap.mif",
+        subset=_Q_TRACT + "/sub-{subject}_hemi-{hemi}_label-{seed}_cond-{cond}_desc-seedfiltered_subset.tck",
+        lengths_csv=_Q_TRACT + "/sub-{subject}_hemi-{hemi}_label-{seed}_cond-{cond}_desc-seedfiltered_lengths.csv",
+        lengths_png=_Q_TRACT + "/sub-{subject}_hemi-{hemi}_label-{seed}_cond-{cond}_desc-seedfiltered_lengths.png",
     params:
         script=lambda wc: TRACTOGRAM_QC_SCRIPT,
         n_subsample=QC_NSUBSAMPLE,
@@ -1057,7 +1057,7 @@ rule enrich_condition_row:
         wb=rules.wb_tckgen_merge.output.tck,
         roi=enrich_cond_roi_dep,
     output:
-        row=_QC + "/sub-{subject}_label-{seed}_cond-{cond}_metrics.csv",
+        row=_Q_COND + "/sub-{subject}_label-{seed}_cond-{cond}_metrics.csv",
     params:
         script=lambda wc: METRICS_SCRIPT,
         level_label=lambda wc: "baseline" if wc.cond == "wb" else wc.cond,
@@ -1097,7 +1097,7 @@ rule enrich_condition_row:
 rule enrich_summary:
     input:
         rows=lambda wc: expand(
-            _QC + "/sub-{subject}_label-{seed}_cond-{cond}_metrics.csv",
+            _Q_COND + "/sub-{subject}_label-{seed}_cond-{cond}_metrics.csv",
             subject=wc.subject, seed=wc.seed, cond=ENRICH_CONDS,
         ),
     output:
@@ -1136,7 +1136,7 @@ def _enrich_fingerprint_outputs():
     so the two cannot share code)."""
     def fp(extra_tag):
         return expand(
-            _TRACTS + "/sub-{subject}_hemi-{hemi}_label-{seed}_cond-{cond}"
+            _T_COND + "/sub-{subject}_hemi-{hemi}_label-{seed}_cond-{cond}"
             + extra_tag + "_desc-{targets}_connectivity_matrix.csv",
             subject=ENRICH_SUBJECTS, seed=ENRICH_SEED, hemi=ENRICH_HEMIS,
             cond=ENRICH_CONDS, targets=ENRICH_TARGETS,
@@ -1163,11 +1163,11 @@ def _enrich_qc_outputs():
     if not bool(config.get("tractography_qc", True)):
         return []
     wb = expand(
-        _QC + "/sub-{subject}_label-{seed}_desc-wb_{art}",
+        _QC + "/cond-wb/tractogram/sub-{subject}_label-{seed}_desc-wb_{art}",
         subject=ENRICH_SUBJECTS, seed=ENRICH_SEED, art=_ENRICH_QC_ARTS,
     )
     filtered = expand(
-        _QC + "/sub-{subject}_hemi-{hemi}_label-{seed}_cond-{cond}_desc-seedfiltered_{art}",
+        _Q_TRACT + "/sub-{subject}_hemi-{hemi}_label-{seed}_cond-{cond}_desc-seedfiltered_{art}",
         subject=ENRICH_SUBJECTS, seed=ENRICH_SEED, hemi=ENRICH_HEMIS,
         cond=ENRICH_CONDS, art=_ENRICH_QC_ARTS,
     )

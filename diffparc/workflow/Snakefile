@@ -268,7 +268,7 @@ def get_enrichment_sweep_outputs():
 
     # Voxelwise connectivity fingerprint per condition x hemi (same as main pipeline).
     fingerprints = expand(
-        "sub-{subject}/tracts/enrichment_sweep/"
+        "sub-{subject}/tracts/enrichment_sweep/cond-{cond}/"
         "sub-{subject}_hemi-{hemi}_label-{seed}_cond-{cond}_desc-{targets}_connectivity_matrix.csv",
         subject=subjects,
         seed=seed,
@@ -282,7 +282,7 @@ def get_enrichment_sweep_outputs():
     fingerprints_invnodevol = []
     if es.get("volume_bias_correction", False):
         fingerprints_invnodevol = expand(
-            "sub-{subject}/tracts/enrichment_sweep/"
+            "sub-{subject}/tracts/enrichment_sweep/cond-{cond}/"
             "sub-{subject}_hemi-{hemi}_label-{seed}_cond-{cond}"
             "_scale-invnodevol_desc-{targets}_connectivity_matrix.csv",
             subject=subjects,
@@ -298,7 +298,7 @@ def get_enrichment_sweep_outputs():
     fingerprints_propagated = []
     if es.get("sift2_propagated", False):
         fingerprints_propagated = expand(
-            "sub-{subject}/tracts/enrichment_sweep/"
+            "sub-{subject}/tracts/enrichment_sweep/cond-{cond}/"
             "sub-{subject}_hemi-{hemi}_label-{seed}_cond-{cond}"
             "_sift2-propagated_desc-{targets}_connectivity_matrix.csv",
             subject=subjects,
@@ -309,7 +309,7 @@ def get_enrichment_sweep_outputs():
         )
         if es.get("volume_bias_correction", False):
             fingerprints_propagated += expand(
-                "sub-{subject}/tracts/enrichment_sweep/"
+                "sub-{subject}/tracts/enrichment_sweep/cond-{cond}/"
                 "sub-{subject}_hemi-{hemi}_label-{seed}_cond-{cond}"
                 "_sift2-propagated_scale-invnodevol_desc-{targets}_connectivity_matrix.csv",
                 subject=subjects,
@@ -326,11 +326,12 @@ def get_enrichment_sweep_outputs():
         arts = ["tdi.mif", "endpoints.mif", "decmap.mif", "subset.tck",
                 "lengths.csv", "lengths.png"]
         qc += expand(
-            "sub-{subject}/qc/enrichment_sweep/sub-{subject}_label-{seed}_desc-wb_{art}",
+            "sub-{subject}/qc/enrichment_sweep/cond-wb/tractogram/"
+            "sub-{subject}_label-{seed}_desc-wb_{art}",
             subject=subjects, seed=seed, art=arts,
         )
         qc += expand(
-            "sub-{subject}/qc/enrichment_sweep/"
+            "sub-{subject}/qc/enrichment_sweep/cond-{cond}/tractogram/"
             "sub-{subject}_hemi-{hemi}_label-{seed}_cond-{cond}_desc-seedfiltered_{art}",
             subject=subjects, seed=seed, hemi=hemis, cond=conds, art=arts,
         )
