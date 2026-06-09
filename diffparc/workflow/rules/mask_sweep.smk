@@ -510,10 +510,23 @@ rule sweep_voxelwise_connectivity:
         sift2_weights=rules.sweep_filter_tractogram.output.sift2_weights,
         nodes=rules.sweep_build_seed_nodes.output.nodes,
         seed_voxel_index=rules.sweep_build_seed_nodes.output.seed_voxel_index,
+        # Main-pipeline SIFT2 mu: the sweep filters the SAME final tractogram +
+        # SIFT2 weights, so the same global mu calibrates these sub-blocks.
+        # ancient() so a touched main SIFT2 fit doesn't force the sweep to re-run,
+        # matching how the tractogram/weights are referenced above.
+        mu=ancient(
+            "sub-{subject}/qc/sub-{subject}_desc-final_method-mrtrix_sift2_mu.txt"
+        ),
     output:
+        # Primary matrix is SIFT2-mu-scaled (FD-calibrated); raw weight-sum block
+        # preserved alongside. Same scheme as connectivity.smk / enrichment_sweep.smk.
         connectivity_matrix=(
             "sub-{subject}/tracts/mask_sweep/{seed}/{mask_source}/"
             "sub-{subject}_hemi-{hemi}_label-{seed}_thr-{thr_tag}_desc-{targets}_connectivity_matrix.csv"
+        ),
+        connectivity_matrix_raw=(
+            "sub-{subject}/tracts/mask_sweep/{seed}/{mask_source}/"
+            "sub-{subject}_hemi-{hemi}_label-{seed}_thr-{thr_tag}_desc-{targets}_meas-raw_connectivity_matrix.csv"
         ),
         assignments=(
             "sub-{subject}/qc/mask_sweep/{seed}/{mask_source}/"
@@ -562,6 +575,8 @@ rule sweep_voxelwise_connectivity:
           --voxel-index "{input.seed_voxel_index}" \
           --header "{params.target_labels}" \
           --out-matrix "{output.connectivity_matrix}" \
+          --out-matrix-raw "{output.connectivity_matrix_raw}" \
+          --mu-file "{input.mu}" \
           --out-qc "{output.qc_metrics}" \
           &>> "{log}"
         """

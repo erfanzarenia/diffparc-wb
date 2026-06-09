@@ -256,11 +256,20 @@ rule voxelwise_connectivity:
         sift2_weights=rules.filter_tractogram.output.sift2_weights,
         nodes=rules.build_seed_nodes.output.nodes,
         seed_voxel_index=rules.build_seed_nodes.output.seed_voxel_index,
+        mu=rules.run_sift2.output.mu,
     output:
+        # Primary matrix is SIFT2-mu-scaled (FD-calibrated); the raw weight-sum
+        # block is preserved alongside for provenance/reversibility. mu is global,
+        # so row-normalizing the primary gives the same fingerprint as the raw.
         connectivity_matrix=(
             "sub-{subject}/tracts/"
             "sub-{subject}_hemi-{hemi}_label-{seed}_desc-{targets}"
             "_connectivity_matrix.csv"
+        ),
+        connectivity_matrix_raw=(
+            "sub-{subject}/tracts/"
+            "sub-{subject}_hemi-{hemi}_label-{seed}_desc-{targets}"
+            "_meas-raw_connectivity_matrix.csv"
         ),
         assignments=(
             "sub-{subject}/qc/connectivity/"
@@ -325,6 +334,8 @@ rule voxelwise_connectivity:
           --voxel-index "{input.seed_voxel_index}" \
           --header "{params.target_labels}" \
           --out-matrix "{output.connectivity_matrix}" \
+          --out-matrix-raw "{output.connectivity_matrix_raw}" \
+          --mu-file "{input.mu}" \
           --out-qc "{output.qc_metrics}" \
           &>> "{log}"
         """

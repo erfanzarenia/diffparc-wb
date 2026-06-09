@@ -39,6 +39,16 @@ def main():
     ap.add_argument("--empty", action="store_true",
                     help="Degenerate empty tractogram (0 streamlines): write a zero "
                          "(n_seed x n_targets) matrix without reading --connectome.")
+    ap.add_argument("--mu-file",
+                    help="Optional SIFT2 proportionality coefficient (mu) file (single "
+                         "float). When given, --out-matrix is written mu-SCALED "
+                         "(fibre-density-calibrated, comparable across subjects/"
+                         "conditions); the unscaled block is preserved at "
+                         "--out-matrix-raw. mu is a single global scalar, so any later "
+                         "row-normalization is unaffected (mu cancels).")
+    ap.add_argument("--out-matrix-raw",
+                    help="Optional path for the UNSCALED (raw weight-sum) block, kept "
+                         "for provenance/reversibility when --mu-file is used.")
     args = ap.parse_args()
 
     labels = [s.strip() for s in args.header.split(",") if s.strip()]
@@ -67,9 +77,26 @@ def main():
         # rows = seed voxels, cols = atlas targets
         block = mat[n_targets:n_total, 0:n_targets]
 
+    header = ",".join(labels)
+
+    # Optional SIFT2 mu scaling. mu is a SINGLE GLOBAL scalar from tcksift2, so the
+    # mu-scaled matrix is fibre-density-calibrated (comparable across subjects and
+    # conditions), while a wrong/ill-defined mu never corrupts the preserved raw
+    # block. Because mu multiplies every edge equally, later row-normalization is
+    # unchanged (mu cancels exactly).
+    mu = None
+    if args.mu_file:
+        with open(args.mu_file) as f:
+            mu = float(f.read().strip().split()[0])
+    primary = block if mu is None else (mu * block)
+
     os.makedirs(os.path.dirname(args.out_matrix) or ".", exist_ok=True)
-    np.savetxt(args.out_matrix, block, delimiter=",",
-               header=",".join(labels), comments="")
+    np.savetxt(args.out_matrix, primary, delimiter=",", header=header, comments="")
+
+    if args.out_matrix_raw:
+        os.makedirs(os.path.dirname(args.out_matrix_raw) or ".", exist_ok=True)
+        np.savetxt(args.out_matrix_raw, block, delimiter=",", header=header,
+                   comments="")
 
     if args.out_qc:
         os.makedirs(os.path.dirname(args.out_qc) or ".", exist_ok=True)
@@ -83,14 +110,20 @@ def main():
                     "seed_voxels_with_any_connection": int(
                         (block.sum(axis=1) > 0).sum()
                     ),
-                    "total_block_weight": float(block.sum()),
+                    "total_block_weight": float(block.sum()),  # raw weight-sum
+                    "sift2_mu": (None if mu is None else float(mu)),
+                    "mu_scaled": bool(mu is not None),
+                    "total_block_weight_scaled": (
+                        None if mu is None else float(primary.sum())
+                    ),
                 },
                 f,
                 indent=2,
             )
 
+    scaled_note = "" if mu is None else f" (mu-scaled, mu={mu:.6g})"
     print(f"slice_connectome_block: wrote {block.shape[0]}x{block.shape[1]} "
-          f"(seed x target) matrix", file=sys.stderr)
+          f"(seed x target) matrix{scaled_note}", file=sys.stderr)
 
 
 if __name__ == "__main__":

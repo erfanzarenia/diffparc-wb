@@ -956,8 +956,6 @@ methods:
   - mrtrix
 
 mrtrix:
-  step: 0.75
-  angle: 45
   step: 0.625
   angle: 37
   minlength: 10

@@ -64,6 +64,24 @@ ROI_MAX_MERGED = _TMP + "/sub-{subject}_label-{seed}_desc-roimax_tractography.tc
 ROI_SUB = _TMP + "/sub-{subject}_label-{seed}_level-{level}_desc-roi_tractography.tck"
 COMBINED = _TMP + "/sub-{subject}_label-{seed}_level-{level}_desc-combined_tractography.tck"
 
+# -----------------------------------------------------------------------------
+# Output directory layout (ORGANIZATIONAL ONLY -- filenames/computations unchanged).
+# Persistent outputs are grouped by enrichment level (cond-{cond}/), and within
+# QC by type, so each level's results are self-contained and easy to compare:
+#   tracts/enrichment_sweep/cond-{cond}/            primary (mu-scaled) connectomes + SIFT2 weights
+#   qc/enrichment_sweep/cond-{cond}/connectome/     raw connectomes, qc json, assignments
+#   qc/enrichment_sweep/cond-{cond}/sift2/          mu, sift2 stats
+#   qc/enrichment_sweep/cond-{cond}/tractogram/     tckinfo + visual QC (tdi/endpoints/decmap/subset/lengths)
+#   qc/enrichment_sweep/cond-{cond}/                per-condition metrics row
+#   qc/enrichment_sweep/roi_max/                    level-independent maximal-ROI tractography QC
+#   qc/enrichment_sweep/<summary.csv>               cross-level summary (top level)
+_T_COND = _TRACTS + "/cond-{cond}"
+_Q_COND = _QC + "/cond-{cond}"
+_Q_CONN = _Q_COND + "/connectome"
+_Q_SIFT2 = _Q_COND + "/sift2"
+_Q_TRACT = _Q_COND + "/tractogram"
+_Q_ROIMAX = _QC + "/roi_max"
+
 # WB baseline tractogram (read-only reuse of the core pipeline output).
 WB_TCK = rules.wb_tckgen_merge.output.tck
 
@@ -104,6 +122,17 @@ def enrich_weights_max(wc):
     """SIFT2 weights from the maximal combined tractogram -- the single fit the
     propagated branch reuses for every level."""
     return rules.enrich_sift2.output.weights.format(
+        subject=wc.subject, seed=wc.seed, cond=str(ENRICH_MAX_LEVEL)
+    )
+
+
+def enrich_mu_max(wc):
+    """SIFT2 mu (proportionality coefficient) from the MAXIMAL-level fit. This is
+    the calibration scalar for the propagated branch, which has no per-condition
+    SIFT2 run of its own: its weights are the max fit carried down, so mu_max puts
+    the propagated connectome in the SAME fibre-density units as the refit branch,
+    making the no-refit/subsample bias directly comparable."""
+    return rules.enrich_sift2.output.mu.format(
         subject=wc.subject, seed=wc.seed, cond=str(ENRICH_MAX_LEVEL)
     )
 
@@ -161,7 +190,7 @@ rule enrich_roi_tckgen_max:
         rng=lambda wc: enrich_hemi_rng(wc.hemi),
     output:
         tck=temp(ROI_MAX_HEMI),
-        tckinfo=_QC + "/sub-{subject}_hemi-{hemi}_label-{seed}_desc-roimax_tckinfo.txt",
+        tckinfo=_Q_ROIMAX + "/sub-{subject}_hemi-{hemi}_label-{seed}_desc-roimax_tckinfo.txt",
     log:
         "logs/sub-{subject}/enrichment_sweep/sub-{subject}_hemi-{hemi}_label-{seed}_roi_tckgen_max.log",
     benchmark:
@@ -205,7 +234,7 @@ rule enrich_roi_merge_max:
         tcks=lambda wc: expand(ROI_MAX_HEMI, hemi=ENRICH_HEMIS, allow_missing=True),
     output:
         tck=temp(ROI_MAX_MERGED),
-        tckinfo=_QC + "/sub-{subject}_label-{seed}_desc-roimax_merged_tckinfo.txt",
+        tckinfo=_Q_ROIMAX + "/sub-{subject}_label-{seed}_desc-roimax_merged_tckinfo.txt",
     log:
         "logs/sub-{subject}/enrichment_sweep/sub-{subject}_label-{seed}_roi_merge_max.log",
     benchmark:
@@ -244,7 +273,7 @@ rule enrich_roi_subsample:
         tck=rules.enrich_roi_merge_max.output.tck,
     output:
         tck=temp(ROI_SUB),
-        roi_count=_QC + "/sub-{subject}_label-{seed}_level-{level}_roi_count.txt",
+        roi_count=_QC + "/cond-{level}/tractogram/sub-{subject}_label-{seed}_level-{level}_roi_count.txt",
         meta=temp(
             _TMP + "/sub-{subject}_label-{seed}_level-{level}_desc-roi_subsample_meta.json"
         ),
@@ -321,7 +350,7 @@ rule enrich_safety_check:
     input:
         tck=enrich_cond_tck,
     output:
-        tckinfo=_QC + "/sub-{subject}_label-{seed}_cond-{cond}_desc-enrich_tckinfo.txt",
+        tckinfo=_Q_TRACT + "/sub-{subject}_label-{seed}_cond-{cond}_desc-enrich_tckinfo.txt",
     log:
         "logs/sub-{subject}/enrichment_sweep/sub-{subject}_label-{seed}_cond-{cond}_safety_check.log",
     threads: lambda wc: res("enrich_safety_check", "threads", 1)
@@ -351,9 +380,9 @@ rule enrich_sift2:
         wm_fod=get_fod_for_tracking,
         five_tt=rules.act_5ttgen.output.five_tt,
     output:
-        weights=_TRACTS + "/sub-{subject}_label-{seed}_cond-{cond}_desc-enrich_sift2_weights.txt",
-        mu=_QC + "/sub-{subject}_label-{seed}_cond-{cond}_sift2_mu.txt",
-        sift2_csv=_QC + "/sub-{subject}_label-{seed}_cond-{cond}_sift2_stats.csv",
+        weights=_T_COND + "/sub-{subject}_label-{seed}_cond-{cond}_desc-enrich_sift2_weights.txt",
+        mu=_Q_SIFT2 + "/sub-{subject}_label-{seed}_cond-{cond}_sift2_mu.txt",
+        sift2_csv=_Q_SIFT2 + "/sub-{subject}_label-{seed}_cond-{cond}_sift2_stats.csv",
     log:
         "logs/sub-{subject}/enrichment_sweep/sub-{subject}_label-{seed}_cond-{cond}_sift2.log",
     benchmark:
@@ -446,10 +475,15 @@ rule enrich_voxelwise_connectivity:
         sift2_weights=rules.enrich_filter_tractogram.output.sift2_weights,
         nodes=rules.build_seed_nodes.output.nodes,
         seed_voxel_index=rules.build_seed_nodes.output.seed_voxel_index,
+        mu=rules.enrich_sift2.output.mu,
     output:
         connectivity_matrix=(
             _TRACTS + "/sub-{subject}_hemi-{hemi}_label-{seed}_cond-{cond}"
             "_desc-{targets}_connectivity_matrix.csv"
+        ),
+        connectivity_matrix_raw=(
+            _TRACTS + "/sub-{subject}_hemi-{hemi}_label-{seed}_cond-{cond}"
+            "_desc-{targets}_meas-raw_connectivity_matrix.csv"
         ),
         assignments=(
             _QC + "/sub-{subject}_hemi-{hemi}_label-{seed}_cond-{cond}"
@@ -500,6 +534,8 @@ rule enrich_voxelwise_connectivity:
             --voxel-index "{input.seed_voxel_index}" \
             --header "{params.target_labels}" \
             --out-matrix "{output.connectivity_matrix}" \
+            --out-matrix-raw "{output.connectivity_matrix_raw}" \
+            --mu-file "{input.mu}" \
             --out-qc "{output.qc_metrics}" \
             &>> "{log}"
         else
@@ -511,6 +547,8 @@ rule enrich_voxelwise_connectivity:
             --voxel-index "{input.seed_voxel_index}" \
             --header "{params.target_labels}" \
             --out-matrix "{output.connectivity_matrix}" \
+            --out-matrix-raw "{output.connectivity_matrix_raw}" \
+            --mu-file "{input.mu}" \
             --out-qc "{output.qc_metrics}" \
             --empty \
             &>> "{log}"
@@ -538,10 +576,15 @@ rule enrich_voxelwise_connectivity_invnodevol:
         sift2_weights=rules.enrich_filter_tractogram.output.sift2_weights,
         nodes=rules.build_seed_nodes.output.nodes,
         seed_voxel_index=rules.build_seed_nodes.output.seed_voxel_index,
+        mu=rules.enrich_sift2.output.mu,
     output:
         connectivity_matrix=(
             _TRACTS + "/sub-{subject}_hemi-{hemi}_label-{seed}_cond-{cond}"
             "_scale-invnodevol_desc-{targets}_connectivity_matrix.csv"
+        ),
+        connectivity_matrix_raw=(
+            _TRACTS + "/sub-{subject}_hemi-{hemi}_label-{seed}_cond-{cond}"
+            "_scale-invnodevol_desc-{targets}_meas-raw_connectivity_matrix.csv"
         ),
         qc_metrics=(
             _QC + "/sub-{subject}_hemi-{hemi}_label-{seed}_cond-{cond}"
@@ -588,6 +631,8 @@ rule enrich_voxelwise_connectivity_invnodevol:
             --voxel-index "{input.seed_voxel_index}" \
             --header "{params.target_labels}" \
             --out-matrix "{output.connectivity_matrix}" \
+            --out-matrix-raw "{output.connectivity_matrix_raw}" \
+            --mu-file "{input.mu}" \
             --out-qc "{output.qc_metrics}" \
             &>> "{log}"
         else
@@ -598,6 +643,8 @@ rule enrich_voxelwise_connectivity_invnodevol:
             --voxel-index "{input.seed_voxel_index}" \
             --header "{params.target_labels}" \
             --out-matrix "{output.connectivity_matrix}" \
+            --out-matrix-raw "{output.connectivity_matrix_raw}" \
+            --mu-file "{input.mu}" \
             --out-qc "{output.qc_metrics}" \
             --empty \
             &>> "{log}"
@@ -716,10 +763,15 @@ rule enrich_voxelwise_connectivity_propagated:
         sift2_weights=rules.enrich_filter_tractogram_propagated.output.sift2_weights,
         nodes=rules.build_seed_nodes.output.nodes,
         seed_voxel_index=rules.build_seed_nodes.output.seed_voxel_index,
+        mu=enrich_mu_max,
     output:
         connectivity_matrix=(
             _TRACTS + "/sub-{subject}_hemi-{hemi}_label-{seed}_cond-{cond}"
             "_sift2-propagated_desc-{targets}_connectivity_matrix.csv"
+        ),
+        connectivity_matrix_raw=(
+            _TRACTS + "/sub-{subject}_hemi-{hemi}_label-{seed}_cond-{cond}"
+            "_sift2-propagated_desc-{targets}_meas-raw_connectivity_matrix.csv"
         ),
         assignments=(
             _QC + "/sub-{subject}_hemi-{hemi}_label-{seed}_cond-{cond}"
@@ -770,6 +822,8 @@ rule enrich_voxelwise_connectivity_propagated:
             --voxel-index "{input.seed_voxel_index}" \
             --header "{params.target_labels}" \
             --out-matrix "{output.connectivity_matrix}" \
+            --out-matrix-raw "{output.connectivity_matrix_raw}" \
+            --mu-file "{input.mu}" \
             --out-qc "{output.qc_metrics}" \
             &>> "{log}"
         else
@@ -781,6 +835,8 @@ rule enrich_voxelwise_connectivity_propagated:
             --voxel-index "{input.seed_voxel_index}" \
             --header "{params.target_labels}" \
             --out-matrix "{output.connectivity_matrix}" \
+            --out-matrix-raw "{output.connectivity_matrix_raw}" \
+            --mu-file "{input.mu}" \
             --out-qc "{output.qc_metrics}" \
             --empty \
             &>> "{log}"
@@ -799,10 +855,15 @@ rule enrich_voxelwise_connectivity_propagated_invnodevol:
         sift2_weights=rules.enrich_filter_tractogram_propagated.output.sift2_weights,
         nodes=rules.build_seed_nodes.output.nodes,
         seed_voxel_index=rules.build_seed_nodes.output.seed_voxel_index,
+        mu=enrich_mu_max,
     output:
         connectivity_matrix=(
             _TRACTS + "/sub-{subject}_hemi-{hemi}_label-{seed}_cond-{cond}"
             "_sift2-propagated_scale-invnodevol_desc-{targets}_connectivity_matrix.csv"
+        ),
+        connectivity_matrix_raw=(
+            _TRACTS + "/sub-{subject}_hemi-{hemi}_label-{seed}_cond-{cond}"
+            "_sift2-propagated_scale-invnodevol_desc-{targets}_meas-raw_connectivity_matrix.csv"
         ),
         qc_metrics=(
             _QC + "/sub-{subject}_hemi-{hemi}_label-{seed}_cond-{cond}"
@@ -849,6 +910,8 @@ rule enrich_voxelwise_connectivity_propagated_invnodevol:
             --voxel-index "{input.seed_voxel_index}" \
             --header "{params.target_labels}" \
             --out-matrix "{output.connectivity_matrix}" \
+            --out-matrix-raw "{output.connectivity_matrix_raw}" \
+            --mu-file "{input.mu}" \
             --out-qc "{output.qc_metrics}" \
             &>> "{log}"
         else
@@ -859,6 +922,8 @@ rule enrich_voxelwise_connectivity_propagated_invnodevol:
             --voxel-index "{input.seed_voxel_index}" \
             --header "{params.target_labels}" \
             --out-matrix "{output.connectivity_matrix}" \
+            --out-matrix-raw "{output.connectivity_matrix_raw}" \
+            --mu-file "{input.mu}" \
             --out-qc "{output.qc_metrics}" \
             --empty \
             &>> "{log}"
