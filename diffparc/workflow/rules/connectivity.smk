@@ -63,6 +63,11 @@ rule reslice_seed_to_nodegrid:
             "logs/sub-{subject}/connectivity/"
             "sub-{subject}_hemi-{hemi}_label-{seed}_reslice_seed_to_nodegrid.log"
         ),
+    benchmark:
+        (
+            "benchmarks/sub-{subject}/connectivity/"
+            "sub-{subject}_hemi-{hemi}_label-{seed}_reslice_seed_to_nodegrid.tsv"
+        ),
     threads: 1
     resources:
         mem_mb=lambda wc: res("reslice_seed_to_nodegrid", "mem_mb", 4000),
@@ -362,6 +367,8 @@ rule fod2dec:
         decmap="sub-{subject}/qc/connectivity/sub-{subject}_desc-fod_decmap.mif",
     log:
         "logs/sub-{subject}/connectivity/sub-{subject}_fod2dec.log",
+    benchmark:
+        "benchmarks/sub-{subject}/connectivity/sub-{subject}_fod2dec.tsv"
     threads: lambda wc: res("fod2dec", "threads", 1)
     resources:
         mem_mb=lambda wc: res("fod2dec", "mem_mb", 4000),

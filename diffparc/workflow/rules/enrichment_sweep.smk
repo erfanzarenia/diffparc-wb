@@ -231,6 +231,8 @@ rule enrich_select_max_volume_mask:
         report=SEL_REPORT,
     log:
         "logs/sub-{subject}/enrichment_sweep/sub-{subject}_hemi-{hemi}_label-{seed}_select_max_volume_mask.log",
+    benchmark:
+        "benchmarks/sub-{subject}/enrichment_sweep/sub-{subject}_hemi-{hemi}_label-{seed}_select_max_volume_mask.tsv"
     threads: 1
     resources:
         mem_mb=lambda wc: res("enrich_select_max_volume_mask", "mem_mb", 2000),
@@ -289,6 +291,8 @@ rule enrich_reslice_selected_to_nodegrid:
         mask=temp(SEL_NODEGRID),
     log:
         "logs/sub-{subject}/enrichment_sweep/sub-{subject}_hemi-{hemi}_label-{seed}_reslice_selected_to_nodegrid.log",
+    benchmark:
+        "benchmarks/sub-{subject}/enrichment_sweep/sub-{subject}_hemi-{hemi}_label-{seed}_reslice_selected_to_nodegrid.tsv"
     threads: 1
     resources:
         mem_mb=lambda wc: res("enrich_reslice_selected_to_nodegrid", "mem_mb", 4000),
@@ -328,6 +332,8 @@ rule enrich_build_selected_nodes:
         n_targets=lambda wc: len(config["targets"][wc.targets]["labels"]),
     log:
         "logs/sub-{subject}/enrichment_sweep/sub-{subject}_hemi-{hemi}_label-{seed}_desc-{targets}_build_selected_nodes.log",
+    benchmark:
+        "benchmarks/sub-{subject}/enrichment_sweep/sub-{subject}_hemi-{hemi}_label-{seed}_desc-{targets}_build_selected_nodes.tsv"
     threads: 1
     resources:
         mem_mb=lambda wc: res("enrich_build_selected_nodes", "mem_mb", 4000),
@@ -540,6 +546,8 @@ rule enrich_safety_check:
         tckinfo=_Q_TRACT + "/sub-{subject}_label-{seed}_cond-{cond}_desc-enrich_tckinfo.txt",
     log:
         "logs/sub-{subject}/enrichment_sweep/sub-{subject}_label-{seed}_cond-{cond}_safety_check.log",
+    benchmark:
+        "benchmarks/sub-{subject}/enrichment_sweep/sub-{subject}_label-{seed}_cond-{cond}_safety_check.tsv"
     threads: lambda wc: res("enrich_safety_check", "threads", 1)
     resources:
         mem_mb=lambda wc: res("enrich_safety_check", "mem_mb", 2000),
@@ -863,6 +871,8 @@ rule enrich_propagate_weights:
         indices_path=enrich_indices_path,
     log:
         "logs/sub-{subject}/enrichment_sweep/sub-{subject}_label-{seed}_cond-{cond}_propagate_weights.log",
+    benchmark:
+        "benchmarks/sub-{subject}/enrichment_sweep/sub-{subject}_label-{seed}_cond-{cond}_propagate_weights.tsv"
     threads: 1
     resources:
         mem_mb=lambda wc: res("enrich_propagate_weights", "mem_mb", 4000),
@@ -1251,6 +1261,8 @@ rule enrich_condition_row:
         roi_arg=enrich_roi_arg,
     log:
         "logs/sub-{subject}/enrichment_sweep/sub-{subject}_label-{seed}_cond-{cond}_metrics.log",
+    benchmark:
+        "benchmarks/sub-{subject}/enrichment_sweep/sub-{subject}_label-{seed}_cond-{cond}_metrics.tsv"
     threads: 1
     resources:
         mem_mb=lambda wc: res("enrich_condition_row", "mem_mb", 2000),
@@ -1291,6 +1303,8 @@ rule enrich_summary:
         summary=_QC + "/sub-{subject}_label-{seed}_enrichment_sweep_summary.csv",
     log:
         "logs/sub-{subject}/enrichment_sweep/sub-{subject}_label-{seed}_summary.log",
+    benchmark:
+        "benchmarks/sub-{subject}/enrichment_sweep/sub-{subject}_label-{seed}_summary.tsv"
     threads: 1
     resources:
         mem_mb=lambda wc: res("enrich_summary", "mem_mb", 1000),

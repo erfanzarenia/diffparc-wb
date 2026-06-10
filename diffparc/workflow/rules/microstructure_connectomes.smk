@@ -57,6 +57,8 @@ rule tensor_to_rd:
         rd=bids(root=root, datatype="dwi", suffix="RD.nii.gz", **subj_wildcards),
     log:
         "logs/sub-{subject}/dwi/sub-{subject}_tensor_to_rd.log",
+    benchmark:
+        "benchmarks/sub-{subject}/dwi/sub-{subject}_tensor_to_rd.tsv"
     threads: lambda wc: res("tensor_to_rd", "threads", 4)
     resources:
         mem_mb=lambda wc: res("tensor_to_rd", "mem_mb", 16000),
