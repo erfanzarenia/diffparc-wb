@@ -388,9 +388,9 @@ rule enrich_roi_tckgen_max:
         "logs/sub-{subject}/enrichment_sweep/sub-{subject}_hemi-{hemi}_label-{seed}_roi_tckgen_max.log",
     benchmark:
         "benchmarks/sub-{subject}/enrichment_sweep/sub-{subject}_hemi-{hemi}_label-{seed}_roi_tckgen_max.tsv"
-    threads: lambda wc: res("enrich_roi_tckgen_max", "threads", 6)
+    threads: lambda wc: res("enrich_roi_tckgen_max", "threads", 8)
     resources:
-        mem_mb=lambda wc: res("enrich_roi_tckgen_max", "mem_mb", 32000),
+        mem_mb=lambda wc: res("enrich_roi_tckgen_max", "mem_mb", 4000),
         time=lambda wc: res("enrich_roi_tckgen_max", "time_min", 240),
     container:
         config["singularity"]["diffparc"]
@@ -478,9 +478,9 @@ rule enrich_roi_subsample:
         "logs/sub-{subject}/enrichment_sweep/sub-{subject}_label-{seed}_level-{level}_roi_subsample.log",
     benchmark:
         "benchmarks/sub-{subject}/enrichment_sweep/sub-{subject}_label-{seed}_level-{level}_roi_subsample.tsv"
-    threads: lambda wc: res("enrich_roi_subsample", "threads", 1)
+    threads: lambda wc: res("enrich_roi_subsample", "threads", 4)
     resources:
-        mem_mb=lambda wc: res("enrich_roi_subsample", "mem_mb", 32000),
+        mem_mb=lambda wc: res("enrich_roi_subsample", "mem_mb", 24000),
         time=lambda wc: res("enrich_roi_subsample", "time_min", 60),
     container:
         config["singularity"]["diffparc"]

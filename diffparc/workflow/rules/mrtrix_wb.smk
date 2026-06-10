@@ -38,9 +38,9 @@ rule wb_tckgen_chunk:
         "logs/sub-{subject}/tracts/sub-{subject}_desc-wb_chunk-{chunk}_tckgen.log",
     benchmark:
         "benchmarks/sub-{subject}/tracts/sub-{subject}_desc-wb_chunk-{chunk}_tckgen.tsv"
-    threads: lambda wc: res("wb_tckgen_chunk", "threads", 10)
+    threads: lambda wc: res("wb_tckgen_chunk", "threads", 16)
     resources:
-        mem_mb=lambda wc: res("wb_tckgen_chunk", "mem_mb", 40000),
+        mem_mb=lambda wc: res("wb_tckgen_chunk", "mem_mb", 4000),
         time=lambda wc: res("wb_tckgen_chunk", "time_min", 1200)
     group:
         "subj"

@@ -45,9 +45,9 @@ rule roi_tckgen:
         "logs/sub-{subject}/tracts/sub-{subject}_hemi-{hemi}_label-{seed}_roi_tckgen.log",
     benchmark:
         "benchmarks/sub-{subject}/tracts/sub-{subject}_hemi-{hemi}_label-{seed}_roi_tckgen.tsv"
-    threads: lambda wc: res("roi_tckgen", "threads", 6)
+    threads: lambda wc: res("roi_tckgen", "threads", 8)
     resources:
-        mem_mb=lambda wc: res("roi_tckgen", "mem_mb", 24000),
+        mem_mb=lambda wc: res("roi_tckgen", "mem_mb", 4000),
         time=lambda wc: res("roi_tckgen", "time_min", 120)
     container:
         config["singularity"]["diffparc"]
