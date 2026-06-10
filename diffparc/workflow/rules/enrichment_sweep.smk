@@ -33,6 +33,9 @@ METRICS_SCRIPT = os.path.join(workflow.basedir, "scripts", "enrichment_condition
 PROPAGATE_SCRIPT = os.path.join(workflow.basedir, "scripts", "propagate_sift2_weights.py")
 # Reused from the main connectivity pipeline (connectivity.smk) -- no duplicate logic.
 SLICE_BLOCK_SCRIPT = os.path.join(workflow.basedir, "scripts", "slice_connectome_block.py")
+# Same per-voxel node builder the main pipeline uses; called here on the selected
+# max-volume sweep mask so node building stays byte-for-byte the same logic.
+BUILD_NODES_SCRIPT = os.path.join(workflow.basedir, "scripts", "build_voxel_nodes.py")
 
 ENRICH_CFG = config.get("enrichment_sweep", {})
 ENRICH_ENABLED = ENRICH_CFG.get("enabled", False)
@@ -53,6 +56,43 @@ ENRICH_SIFT2_PROP = bool(ENRICH_CFG.get("sift2_propagated", False))
 ENRICH_CONDS = ["wb"] + [str(lv) for lv in ENRICH_LEVELS]
 
 ENRICH_SUBJECTS = sorted(set(inputs.input_zip_lists["T1w"]["subject"]))
+
+# -----------------------------------------------------------------------------
+# Seed = LARGEST-volume mask_sweep mask (added)
+# -----------------------------------------------------------------------------
+# Instead of the canonical thresholded+dilated seed, the enrichment sweep seeds
+# from the mask with the most voxels among the mask_sweep candidates, restricted
+# to the NATIVE-source masks of ENRICH_SEED across all configured sweep
+# thresholds. The selection is per (subject, hemi), purely by nonzero voxel
+# count, deterministic with a sorted-filename tie-break (no RNG). The SAME
+# selected mask drives the whole enrichment chain (seeding + filtering + node
+# parcellation), so the seeded and analysed regions stay voxel-consistent.
+# These candidate masks are produced by mask_sweep.smk:sweep_binarize_seed, whose
+# rule is always defined; requesting them here pulls them into the DAG regardless
+# of the mask_sweep.enabled (rule all) gate. mask_sweep.smk / connectivity.smk
+# are left untouched.
+ENRICH_SWEEP_MASK_SOURCE = "native"
+ENRICH_SWEEP_THR_TAGS = [
+    str(t).replace(".", "p")
+    for t in config.get("mask_sweep", {}).get("thresholds", [])
+]
+if ENRICH_ENABLED and not ENRICH_SWEEP_THR_TAGS:
+    raise ValueError(
+        "enrichment_sweep is enabled and now selects its seed from the mask_sweep "
+        "candidate masks, but config['mask_sweep']['thresholds'] is empty/missing. "
+        "Define the sweep thresholds (the candidate masks) or disable enrichment_sweep."
+    )
+
+
+def enrich_sweep_mask_candidates(wc):
+    """Native-source ENRICH_SEED sweep masks (one per configured threshold) for
+    this (subject, hemi), in deterministic sorted-filename order. These are the
+    candidates the max-volume selection chooses between."""
+    return sorted(
+        f"sub-{wc.subject}/anat/mask_sweep/{wc.seed}/{ENRICH_SWEEP_MASK_SOURCE}/"
+        f"sub-{wc.subject}_hemi-{wc.hemi}_label-{wc.seed}_thr-{tag}_mask.nii.gz"
+        for tag in ENRICH_SWEEP_THR_TAGS
+    )
 
 # Path templates (plain sub-{subject}, mirroring mask_sweep; no session entity).
 _TMP = config["tmp_dir"] + "/sub-{subject}/tracts/enrichment_sweep"
@@ -81,6 +121,15 @@ _Q_CONN = _Q_COND + "/connectome"
 _Q_SIFT2 = _Q_COND + "/sift2"
 _Q_TRACT = _Q_COND + "/tractogram"
 _Q_ROIMAX = _QC + "/roi_max"
+
+# Max-volume sweep-mask selection (added). Selected mask + its selection report
+# live in QC (auditable, persistent); the node-grid reslice and per-voxel node
+# image are scratch/temp like their main-pipeline counterparts.
+SEL_MASK = _QC + "/maxvol_mask/sub-{subject}_hemi-{hemi}_label-{seed}_desc-maxvolsweep_mask.nii.gz"
+SEL_REPORT = _QC + "/maxvol_mask/sub-{subject}_hemi-{hemi}_label-{seed}_desc-maxvolsweep_selection.csv"
+SEL_NODEGRID = _TMP + "/sub-{subject}_hemi-{hemi}_label-{seed}_desc-maxvolsweep_res-nodegrid_mask.nii.gz"
+SEL_NODES = _TMP + "/sub-{subject}_hemi-{hemi}_label-{seed}_maxvolsweep_{targets}_nodes.nii.gz"
+SEL_VOXIDX = _QC + "/maxvol_mask/sub-{subject}_hemi-{hemi}_label-{seed}_maxvolsweep_{targets}_seed_voxel_index.csv"
 
 # WB baseline tractogram (read-only reuse of the core pipeline output).
 WB_TCK = rules.wb_tckgen_merge.output.tck
@@ -164,6 +213,147 @@ def enrich_indices_path(wc):
 
 
 # -----------------------------
+# (0) Select the largest-volume mask_sweep mask  (drives the whole chain)
+# -----------------------------
+rule enrich_select_max_volume_mask:
+    """Pick the largest-volume (nonzero voxel count) mask_sweep mask for this
+    (subject, hemi) from the native-source ENRICH_SEED candidates.
+
+    Deterministic: candidates arrive in sorted-filename order and the strict
+    maximum is kept, so a tie falls to the first sorted filename -- no RNG.
+    Selection is by voxel count (mrstats -output count over the mask's own
+    nonzero voxels), never file size or header metadata. The per-candidate counts
+    and the winner are written to a CSV report for provenance/QC."""
+    input:
+        candidates=enrich_sweep_mask_candidates,
+    output:
+        mask=SEL_MASK,
+        report=SEL_REPORT,
+    log:
+        "logs/sub-{subject}/enrichment_sweep/sub-{subject}_hemi-{hemi}_label-{seed}_select_max_volume_mask.log",
+    threads: 1
+    resources:
+        mem_mb=lambda wc: res("enrich_select_max_volume_mask", "mem_mb", 2000),
+        time=lambda wc: res("enrich_select_max_volume_mask", "time_min", 10),
+    container:
+        config["singularity"]["diffparc"]
+    group:
+        "subj"
+    shell:
+        r"""
+        set -euo pipefail
+        mkdir -p "$(dirname "{output.mask}")"
+        mkdir -p "$(dirname "{log}")"
+        : > "{log}"
+
+        best=""
+        best_n=-1
+        printf 'candidate,voxel_count\n' > "{output.report}"
+        # Candidates are in sorted-filename order; strict '>' keeps the FIRST
+        # maximum => deterministic lexicographic tie-break. Count = the mask's own
+        # nonzero voxels (mrstats restricted to the mask itself).
+        for m in {input.candidates}; do
+          n="$(mrstats "$m" -mask "$m" -output count 2>> "{log}" | tr -d '[:space:]')"
+          n="${{n:-0}}"
+          printf '%s,%s\n' "$m" "$n" >> "{output.report}"
+          if [ "$n" -gt "$best_n" ]; then
+            best_n="$n"
+            best="$m"
+          fi
+        done
+
+        if [ -z "$best" ]; then
+          echo "enrich_select_max_volume_mask: no candidate masks found" >> "{log}"
+          exit 1
+        fi
+
+        printf 'selected,%s,%s\n' "$best" "$best_n" >> "{output.report}"
+        echo "enrich_select_max_volume_mask: selected $best (voxel_count=$best_n)" >> "{log}"
+        cp -f "$best" "{output.mask}"
+        """
+
+
+# -----------------------------
+# (0b) Reslice selected mask onto the node grid (== target-atlas grid)
+#      Mirrors connectivity.smk:reslice_seed_to_nodegrid, on the selected mask.
+#      The single resliced mask feeds BOTH filtering and node building below.
+# -----------------------------
+rule enrich_reslice_selected_to_nodegrid:
+    input:
+        seed_mask=rules.enrich_select_max_volume_mask.output.mask,
+        ref=bids(
+            root=root, suffix="mask.nii.gz", desc="brain", space="T1w",
+            res="upsampled", datatype="dwi", **subj_wildcards,
+        ),
+    output:
+        mask=temp(SEL_NODEGRID),
+    log:
+        "logs/sub-{subject}/enrichment_sweep/sub-{subject}_hemi-{hemi}_label-{seed}_reslice_selected_to_nodegrid.log",
+    threads: 1
+    resources:
+        mem_mb=lambda wc: res("enrich_reslice_selected_to_nodegrid", "mem_mb", 4000),
+        time=lambda wc: res("enrich_reslice_selected_to_nodegrid", "time_min", 10),
+    container:
+        config["singularity"]["diffparc"]
+    group:
+        "subj"
+    shell:
+        r"""
+        set -euo pipefail
+        mkdir -p "$(dirname "{output.mask}")"
+        mkdir -p "$(dirname "{log}")"
+
+        c3d -int 0 "{input.ref}" "{input.seed_mask}" \
+          -reslice-identity \
+          -threshold 0.5 inf 1 0 \
+          -type uchar \
+          -o "{output.mask}" \
+          &> "{log}"
+        """
+
+
+# -----------------------------
+# (0c) Per-voxel node parcellation from the selected mask
+#      Same build_voxel_nodes.py logic as connectivity.smk:build_seed_nodes.
+# -----------------------------
+rule enrich_build_selected_nodes:
+    input:
+        seed_mask=rules.enrich_reslice_selected_to_nodegrid.output.mask,
+        targets_dseg="sub-{subject}/anat/sub-{subject}_desc-{targets}_dseg.nii.gz",
+    output:
+        nodes=temp(SEL_NODES),
+        seed_voxel_index=SEL_VOXIDX,
+    params:
+        script=lambda wc: BUILD_NODES_SCRIPT,
+        n_targets=lambda wc: len(config["targets"][wc.targets]["labels"]),
+    log:
+        "logs/sub-{subject}/enrichment_sweep/sub-{subject}_hemi-{hemi}_label-{seed}_desc-{targets}_build_selected_nodes.log",
+    threads: 1
+    resources:
+        mem_mb=lambda wc: res("enrich_build_selected_nodes", "mem_mb", 4000),
+        time=lambda wc: res("enrich_build_selected_nodes", "time_min", 10),
+    container:
+        config["singularity"]["diffparc"]
+    group:
+        "subj"
+    shell:
+        r"""
+        set -euo pipefail
+        mkdir -p "$(dirname "{output.nodes}")"
+        mkdir -p "$(dirname "{output.seed_voxel_index}")"
+        mkdir -p "$(dirname "{log}")"
+
+        python "{params.script}" \
+          --seed-mask "{input.seed_mask}" \
+          --targets-nii "{input.targets_dseg}" \
+          --n-targets {params.n_targets} \
+          --out-nodes "{output.nodes}" \
+          --out-voxel-index "{output.seed_voxel_index}" \
+          &> "{log}"
+        """
+
+
+# -----------------------------
 # (1) Maximal-enrichment ROI tractogram  -- the ONLY ROI generation
 # -----------------------------
 rule enrich_roi_tckgen_max:
@@ -175,10 +365,7 @@ rule enrich_roi_tckgen_max:
     input:
         wm_fod=get_fod_for_tracking,
         mask=bids(root=root, datatype="dwi", suffix="mask.mif", **subj_wildcards),
-        seed_mask=bids(
-            root=root, **subj_wildcards, hemi="{hemi}", label="{seed}",
-            datatype="anat", suffix="mask.nii.gz",
-        ),
+        seed_mask=rules.enrich_select_max_volume_mask.output.mask,
         five_tt=rules.act_5ttgen.output.five_tt,
     params:
         spv=lambda wc: ENRICH_MAX_LEVEL,
@@ -420,7 +607,7 @@ rule enrich_filter_tractogram:
     input:
         tractogram=enrich_cond_tck,
         sift2_weights=rules.enrich_sift2.output.weights,
-        seed_mask=rules.reslice_seed_to_nodegrid.output.mask,
+        seed_mask=rules.enrich_reslice_selected_to_nodegrid.output.mask,
     output:
         tractogram=temp(
             _TMP + "/sub-{subject}_hemi-{hemi}_label-{seed}_cond-{cond}"
@@ -473,8 +660,8 @@ rule enrich_voxelwise_connectivity:
     input:
         tractogram=rules.enrich_filter_tractogram.output.tractogram,
         sift2_weights=rules.enrich_filter_tractogram.output.sift2_weights,
-        nodes=rules.build_seed_nodes.output.nodes,
-        seed_voxel_index=rules.build_seed_nodes.output.seed_voxel_index,
+        nodes=rules.enrich_build_selected_nodes.output.nodes,
+        seed_voxel_index=rules.enrich_build_selected_nodes.output.seed_voxel_index,
         mu=rules.enrich_sift2.output.mu,
     output:
         connectivity_matrix=(
@@ -574,8 +761,8 @@ rule enrich_voxelwise_connectivity_invnodevol:
     input:
         tractogram=rules.enrich_filter_tractogram.output.tractogram,
         sift2_weights=rules.enrich_filter_tractogram.output.sift2_weights,
-        nodes=rules.build_seed_nodes.output.nodes,
-        seed_voxel_index=rules.build_seed_nodes.output.seed_voxel_index,
+        nodes=rules.enrich_build_selected_nodes.output.nodes,
+        seed_voxel_index=rules.enrich_build_selected_nodes.output.seed_voxel_index,
         mu=rules.enrich_sift2.output.mu,
     output:
         connectivity_matrix=(
@@ -708,7 +895,7 @@ rule enrich_filter_tractogram_propagated:
     input:
         tractogram=enrich_cond_tck,
         sift2_weights=rules.enrich_propagate_weights.output.weights,
-        seed_mask=rules.reslice_seed_to_nodegrid.output.mask,
+        seed_mask=rules.enrich_reslice_selected_to_nodegrid.output.mask,
     output:
         tractogram=temp(
             _TMP + "/sub-{subject}_hemi-{hemi}_label-{seed}_cond-{cond}"
@@ -761,8 +948,8 @@ rule enrich_voxelwise_connectivity_propagated:
     input:
         tractogram=rules.enrich_filter_tractogram_propagated.output.tractogram,
         sift2_weights=rules.enrich_filter_tractogram_propagated.output.sift2_weights,
-        nodes=rules.build_seed_nodes.output.nodes,
-        seed_voxel_index=rules.build_seed_nodes.output.seed_voxel_index,
+        nodes=rules.enrich_build_selected_nodes.output.nodes,
+        seed_voxel_index=rules.enrich_build_selected_nodes.output.seed_voxel_index,
         mu=enrich_mu_max,
     output:
         connectivity_matrix=(
@@ -853,8 +1040,8 @@ rule enrich_voxelwise_connectivity_propagated_invnodevol:
     input:
         tractogram=rules.enrich_filter_tractogram_propagated.output.tractogram,
         sift2_weights=rules.enrich_filter_tractogram_propagated.output.sift2_weights,
-        nodes=rules.build_seed_nodes.output.nodes,
-        seed_voxel_index=rules.build_seed_nodes.output.seed_voxel_index,
+        nodes=rules.enrich_build_selected_nodes.output.nodes,
+        seed_voxel_index=rules.enrich_build_selected_nodes.output.seed_voxel_index,
         mu=enrich_mu_max,
     output:
         connectivity_matrix=(
