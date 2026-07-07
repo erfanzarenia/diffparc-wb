@@ -59,10 +59,10 @@ rule tensor_to_rd:
         "logs/sub-{subject}/dwi/sub-{subject}_tensor_to_rd.log",
     benchmark:
         "benchmarks/sub-{subject}/dwi/sub-{subject}_tensor_to_rd.tsv"
-    threads: lambda wc: res("tensor_to_rd", "threads", 4)
+    threads: lambda wc: res("tensor_to_rd", "threads", 1)
     resources:
-        mem_mb=lambda wc: res("tensor_to_rd", "mem_mb", 16000),
-        time=lambda wc: res("tensor_to_rd", "time_min", 20),
+        mem_mb=lambda wc: res("tensor_to_rd", "mem_mb", 2000),
+        time=lambda wc: res("tensor_to_rd", "time_min", 10),
     group:
         "subj"
     container:
@@ -100,10 +100,10 @@ rule microstructure_sample:
         "logs/sub-{subject}/connectivity/sub-{subject}_desc-final_metric-{metric}_tcksample.log",
     benchmark:
         "benchmarks/sub-{subject}/connectivity/sub-{subject}_desc-final_metric-{metric}_tcksample.tsv"
-    threads: lambda wc: res("microstructure_sample", "threads", 4)
+    threads: lambda wc: res("microstructure_sample", "threads", 2)
     resources:
-        mem_mb=lambda wc: res("microstructure_sample", "mem_mb", 8000),
-        time=lambda wc: res("microstructure_sample", "time_min", 30),
+        mem_mb=lambda wc: res("microstructure_sample", "mem_mb", 4000),
+        time=lambda wc: res("microstructure_sample", "time_min", 75),
     group:
         "subj"
     container:
@@ -154,7 +154,7 @@ rule microstructure_connectome:
     threads: lambda wc: res("microstructure_connectome", "threads", 2)
     resources:
         mem_mb=lambda wc: res("microstructure_connectome", "mem_mb", 8000),
-        time=lambda wc: res("microstructure_connectome", "time_min", 20),
+        time=lambda wc: res("microstructure_connectome", "time_min", 30),
     group:
         "subj"
     container:

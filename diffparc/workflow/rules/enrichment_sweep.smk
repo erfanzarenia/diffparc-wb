@@ -1138,32 +1138,32 @@ rule enrich_voxelwise_connectivity_propagated_invnodevol:
 #      QC_NSUBSAMPLE / QC_SUBSAMPLE_SEED come from connectivity.smk (included first).
 # -----------------------------
 rule enrich_qc_tractogram_wb:
-    """Visual QC for the whole-brain baseline tractogram + its (cond=wb) SIFT2 weights."""
+    """Lightweight QC for the whole-brain baseline tractogram (subset only).
+
+    The full QC artifacts (TDI / endpoint / DEC density maps, full-tractogram length
+    histogram, random reservoir subset) each stream the entire ~100M-streamline WB
+    tractogram -- a single-core, multi-hour straggler that held the node idle at the
+    end of the run. The WB-baseline QC here is not load-bearing (the main connectivity
+    QC, rule qc_tractogram_wb, keeps the full treatment), so this rule keeps ONLY the
+    one trivial artifact: a small leading-N subset for mrview inspection, written with
+    `tckedit -number` (early-exit: reads ~N streamlines, NOT the whole tractogram).
+    WB tckgen uses `-seed_dynamic`, so leading-N is a spatially uniform whole-brain
+    sample. The expensive density maps + full-tractogram length histogram are dropped.
+    """
     input:
         tck=rules.wb_tckgen_merge.output.tck,
-        weights=lambda wc: rules.enrich_sift2.output.weights.format(
-            subject=wc.subject, seed=wc.seed, cond="wb"
-        ),
-        template=bids(root=root, datatype="dwi", suffix="mask.mif", **subj_wildcards),
     output:
-        tdi=_QC + "/cond-wb/tractogram/sub-{subject}_label-{seed}_desc-wb_tdi.mif",
-        endpoints=_QC + "/cond-wb/tractogram/sub-{subject}_label-{seed}_desc-wb_endpoints.mif",
-        decmap=_QC + "/cond-wb/tractogram/sub-{subject}_label-{seed}_desc-wb_decmap.mif",
         subset=_QC + "/cond-wb/tractogram/sub-{subject}_label-{seed}_desc-wb_subset.tck",
-        lengths_csv=_QC + "/cond-wb/tractogram/sub-{subject}_label-{seed}_desc-wb_lengths.csv",
-        lengths_png=_QC + "/cond-wb/tractogram/sub-{subject}_label-{seed}_desc-wb_lengths.png",
     params:
-        script=lambda wc: TRACTOGRAM_QC_SCRIPT,
         n_subsample=QC_NSUBSAMPLE,
-        seed=QC_SUBSAMPLE_SEED,
     log:
         "logs/sub-{subject}/enrichment_sweep/sub-{subject}_label-{seed}_desc-wb_tractogram_qc.log",
     benchmark:
         "benchmarks/sub-{subject}/enrichment_sweep/sub-{subject}_label-{seed}_desc-wb_tractogram_qc.tsv"
-    threads: lambda wc: res("enrich_qc_tractogram_wb", "threads", 4)
+    threads: lambda wc: res("enrich_qc_tractogram_wb", "threads", 2)
     resources:
-        mem_mb=lambda wc: res("enrich_qc_tractogram_wb", "mem_mb", 16000),
-        time=lambda wc: res("enrich_qc_tractogram_wb", "time_min", 120),
+        mem_mb=lambda wc: res("enrich_qc_tractogram_wb", "mem_mb", 2000),
+        time=lambda wc: res("enrich_qc_tractogram_wb", "time_min", 20),
     container:
         config["singularity"]["diffparc"]
     group:
@@ -1171,23 +1171,11 @@ rule enrich_qc_tractogram_wb:
     shell:
         r"""
         set -euo pipefail
-        mkdir -p "$(dirname "{output.tdi}")"
+        mkdir -p "$(dirname "{output.subset}")"
         mkdir -p "$(dirname "{log}")"
 
-        python "{params.script}" \
-          --tck "{input.tck}" \
-          --template "{input.template}" \
-          --weights "{input.weights}" \
-          --out-tdi "{output.tdi}" \
-          --out-endpoints "{output.endpoints}" \
-          --out-dec "{output.decmap}" \
-          --out-subset "{output.subset}" \
-          --out-lengths-csv "{output.lengths_csv}" \
-          --out-lengths-png "{output.lengths_png}" \
-          --n-subsample {params.n_subsample} \
-          --seed {params.seed} \
-          --nthreads {threads} \
-          &> "{log}"
+        tckedit -force -nthreads {threads} -number {params.n_subsample} \
+          "{input.tck}" "{output.subset}" &> "{log}"
         """
 
 
@@ -1214,7 +1202,7 @@ rule enrich_qc_tractogram_filtered:
         "benchmarks/sub-{subject}/enrichment_sweep/sub-{subject}_hemi-{hemi}_label-{seed}_cond-{cond}_desc-seedfiltered_tractogram_qc.tsv"
     threads: lambda wc: res("enrich_qc_tractogram_filtered", "threads", 2)
     resources:
-        mem_mb=lambda wc: res("enrich_qc_tractogram_filtered", "mem_mb", 8000),
+        mem_mb=lambda wc: res("enrich_qc_tractogram_filtered", "mem_mb", 2000),
         time=lambda wc: res("enrich_qc_tractogram_filtered", "time_min", 30),
     container:
         config["singularity"]["diffparc"]
@@ -1358,6 +1346,10 @@ def _enrich_fingerprint_outputs():
 # background (rule fod2dec, from connectivity.smk).
 _ENRICH_QC_ARTS = ["tdi.mif", "endpoints.mif", "decmap.mif", "subset.tck",
                    "lengths.csv", "lengths.png"]
+# WB baseline keeps ONLY the trivial subset (see rule enrich_qc_tractogram_wb): the
+# full density maps + length histogram over the ~100M WB tractogram were dropped as
+# an expensive single-core straggler. Filtered (small) tractograms keep all artifacts.
+_ENRICH_QC_WB_ARTS = ["subset.tck"]
 
 
 def _enrich_qc_outputs():
@@ -1365,7 +1357,7 @@ def _enrich_qc_outputs():
         return []
     wb = expand(
         _QC + "/cond-wb/tractogram/sub-{subject}_label-{seed}_desc-wb_{art}",
-        subject=ENRICH_SUBJECTS, seed=ENRICH_SEED, art=_ENRICH_QC_ARTS,
+        subject=ENRICH_SUBJECTS, seed=ENRICH_SEED, art=_ENRICH_QC_WB_ARTS,
     )
     filtered = expand(
         _Q_TRACT + "/sub-{subject}_hemi-{hemi}_label-{seed}_cond-{cond}_desc-seedfiltered_{art}",

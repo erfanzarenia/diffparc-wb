@@ -52,10 +52,10 @@ rule act_5ttgen:
         five_tt="sub-{subject}/anat/sub-{subject}_desc-5tt_method-mrtrix.mif",
     log:
         "logs/sub-{subject}/act_5ttgen.log",
-    threads: lambda wc: res("act_5ttgen", "threads", 8)
+    threads: lambda wc: res("act_5ttgen", "threads", 4)
     resources:
-        mem_mb=lambda wc: res("act_5ttgen", "mem_mb", 32000),
-        time=lambda wc: res("act_5ttgen", "time_min", 180)
+        mem_mb=lambda wc: res("act_5ttgen", "mem_mb", 12000),
+        time=lambda wc: res("act_5ttgen", "time_min", 60)
     container:
         config["singularity"]["diffparc"]
     group:

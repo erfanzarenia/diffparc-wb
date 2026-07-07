@@ -38,9 +38,9 @@ rule wb_tckgen_chunk:
         "logs/sub-{subject}/tracts/sub-{subject}_desc-wb_chunk-{chunk}_tckgen.log",
     benchmark:
         "benchmarks/sub-{subject}/tracts/sub-{subject}_desc-wb_chunk-{chunk}_tckgen.tsv"
-    threads: lambda wc: res("wb_tckgen_chunk", "threads", 16)
+    threads: lambda wc: res("wb_tckgen_chunk", "threads", 10)
     resources:
-        mem_mb=lambda wc: res("wb_tckgen_chunk", "mem_mb", 4000),
+        mem_mb=lambda wc: res("wb_tckgen_chunk", "mem_mb", 40000),
         time=lambda wc: res("wb_tckgen_chunk", "time_min", 1200)
     group:
         "subj"
@@ -95,7 +95,7 @@ rule wb_tckgen_merge:
     threads: lambda wc: res("wb_tckgen_merge", "threads", 2)
     resources:
         mem_mb=lambda wc: res("wb_tckgen_merge", "mem_mb", 2000),
-        time=lambda wc: res("wb_tckgen_merge", "time_min", 30)
+        time=lambda wc: res("wb_tckgen_merge", "time_min", 45)
     container:
         config["singularity"]["diffparc"]
     group:

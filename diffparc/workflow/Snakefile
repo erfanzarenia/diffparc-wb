@@ -23,7 +23,10 @@ config.setdefault("b0_bet_frac", 0.5)
 config.setdefault("show_parallel_eta", False)
 config.setdefault("in_prepdwi_dir", False)
 config.setdefault("in_snakedwi_dir", False)
-config.setdefault("dwi_biascorrect", True)
+# OFF by default: DiffParcSurf defers DWI bias correction to SnakeDWI (see
+# config/snakebids.yml dwi_biascorrect). Fallback here only applies if the key
+# is absent from the config entirely.
+config.setdefault("dwi_biascorrect", False)
 config.setdefault("mask_sweep", {})
 config["mask_sweep"].setdefault("enabled", False)
 
@@ -325,10 +328,13 @@ def get_enrichment_sweep_outputs():
     if config.get("tractography_qc", True):
         arts = ["tdi.mif", "endpoints.mif", "decmap.mif", "subset.tck",
                 "lengths.csv", "lengths.png"]
+        # WB baseline keeps ONLY the trivial subset (rule enrich_qc_tractogram_wb):
+        # its full density maps + length histogram over the ~100M WB tractogram were
+        # dropped as an expensive single-core straggler. Filtered QC keeps all arts.
         qc += expand(
             "sub-{subject}/qc/enrichment_sweep/cond-wb/tractogram/"
             "sub-{subject}_label-{seed}_desc-wb_{art}",
-            subject=subjects, seed=seed, art=arts,
+            subject=subjects, seed=seed, art=["subset.tck"],
         )
         qc += expand(
             "sub-{subject}/qc/enrichment_sweep/cond-{cond}/tractogram/"

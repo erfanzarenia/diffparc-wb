@@ -430,9 +430,9 @@ rule sweep_filter_tractogram:
         "logs/sub-{subject}/mask_sweep/{seed}/{mask_source}/sub-{subject}_hemi-{hemi}_label-{seed}_thr-{thr_tag}_filter_tractogram.log",
     benchmark:
         "benchmarks/sub-{subject}/mask_sweep/{seed}/{mask_source}/sub-{subject}_hemi-{hemi}_label-{seed}_thr-{thr_tag}_filter_tractogram.tsv",
-    threads: lambda wc: config.get("mrtrix", {}).get("filter_threads", 4)
+    threads: lambda wc: config.get("mrtrix", {}).get("filter_threads", 2)
     resources:
-        mem_mb=16000,
+        mem_mb=8000,
         time=90
     container:
         config["singularity"]["diffparc"]
@@ -549,9 +549,9 @@ rule sweep_voxelwise_connectivity:
         slice_script=lambda wc: SLICE_BLOCK_SCRIPT,
         target_labels=lambda wc: ",".join(config["targets"][wc.targets]["labels"]),
         target_search_radius=lambda wc: config.get("mrtrix", {}).get("target_search_radius", 4),
-    threads: lambda wc: config.get("mrtrix", {}).get("voxelagg_threads", 4)
+    threads: lambda wc: config.get("mrtrix", {}).get("voxelagg_threads", 1)
     resources:
-        mem_mb=16000,
+        mem_mb=2000,
         time=90
     container:
         config["singularity"]["diffparc"]

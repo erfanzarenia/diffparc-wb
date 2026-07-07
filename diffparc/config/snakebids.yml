@@ -236,15 +236,33 @@ singularity:
 #  3. can resample as specified resolution
 
 resample_dwi:
-  resample_scheme: 'orig' # should be one of: ['T1w', 'orig', 'custom']
-  custom_resolution: #only needed if the 'custom' 
-  resample_mm: 
-    - 1.0
-    - 1.0
-    - 1.0
+  # 'custom' at 1.25mm: DWI->T1w resample lands directly on the final 1.25mm
+  # grid (single resample, cubic B-spline) in reg_dwi_to_t1.smk. dwi_upsample
+  # (below) is disabled to match -- the FOD branch no longer re-upsamples via
+  # a separate mrgrid regrid. Must match snakedwi's config/snakebids.yml.
+  resample_scheme: 'custom' # should be one of: ['T1w', 'orig', 'custom']
+  custom_resolution: #only needed if the 'custom'
+  resample_mm:
+    - 1.25
+    - 1.25
+    - 1.25
 
 
-#masking options, provides customization at a per subject level.. 
+# DWI signal bias correction -- OFF by default in DiffParcSurf.
+# This pipeline is normally driven by SnakeDWI (in_snakedwi_dir), which already
+# does denoise/degibbs/topup+eddy/gradcorrect/registration AND bias correction
+# natively before its DWI->T1w resample. DiffParcSurf must NOT redo it.
+#   * Import mode (in_snakedwi_dir/in_prepdwi_dir set): this flag has NO effect
+#     anyway -- DiffParcSurf never bias-corrects imported data in any code path.
+#   * Standalone mode (no SnakeDWI): False => DiffParcSurf's own native
+#     bias-correction step (rule dwibiascorrect_native) is skipped and its
+#     registration/resample + native DTI fit run on the raw preproc DWI.
+# Set to True only if you intentionally run DiffParcSurf standalone AND want it
+# to bias-correct itself.
+dwi_biascorrect: False
+
+
+#masking options, provides customization at a per subject level..
 masking:
   default_method: 'bet_from-b0_frac-1' #b0SyN_from-MNI152NLin2009cSym' #default method to use for brainmasking
   methods: # list of methods (for QC report)
@@ -915,8 +933,12 @@ volume_metrics:
 #tractography parameters
 fod_algorithm: msmt_csd
 
-dwi_upsample: true
-dwi_upsample_vox: 1.25   # mm, isotropic
+#dwi_upsample: 1.25mm now happens once, in SnakeDWI's/DiffParcSurf's own
+# reg_dwi_to_t1.smk DWI->T1w resample (resample_dwi.resample_scheme: custom),
+# via cubic B-spline. Disabled here so the FOD branch does not upsample AGAIN
+# via a second mrgrid regrid on top of an already-1.25mm image.
+dwi_upsample: false
+dwi_upsample_vox: 1.25   # mm, isotropic (kept for reference / rule params)
 
 enable_global_conn: true
 disable_voxelwise_conn: true
@@ -973,43 +995,85 @@ mrtrix:
 
 mrtrix_rng_seed: 7 #random number generator seed for reproducible results
   
-wb_chunk_count: 2
-wb_chunk_streamlines: 50000000
+wb_chunk_count: 4
+wb_chunk_streamlines: 25000000   # 4 x 25M = 100M total (unchanged); fills the 64-core node
 
 roi_enrichment:
   enabled: True
   seeds_per_voxel: 3000
 
 resources:
-  dwi2fod_msmt:
-    threads: 12
-    mem_mb: 8000
-    time_min: 15
- 
-  act_5ttgen:
-    threads: 4
-    mem_mb: 16000      
-    time_min: 120
-  
+  # ------------------------------------------------------------------
+  # ONLY per-rule resources that SCALE with tractography parameters live here
+  # (streamline count, chunk size, seeds-per-voxel, enrichment level). Tune these
+  # when you change wb_chunk_streamlines, roi_enrichment.seeds_per_voxel, or
+  # enrichment_sweep.levels. Image-driven / fixed-cost rules (dwi2fod, act_5ttgen,
+  # tensor metrics, tractogram merges, QC, microstructure, mask-sweep per-job) are
+  # hard-coded as rule defaults in workflow/rules/*.smk and intentionally NOT here.
+  # ------------------------------------------------------------------
+
+  # Whole-brain tractography. mem ~flat (~2 GB); threads fill the node; time tracks
+  # wb_chunk_streamlines (~2 h per 25M-streamline chunk at 16 threads). 4x16=64 cores.
   wb_tckgen_chunk:
     threads: 16
     mem_mb: 4000
-    time_min: 360
- 
+    time_min: 180
+
+  # Seed-region tractography. Scales with seeds_per_vertex.
   roi_tckgen:
     threads: 8
-    mem_mb: 4000       
-    time_min: 15
-    
+    mem_mb: 2000
+    time_min: 90
+
+  # SIFT2 on the whole-brain tractogram. mem ~= O(streamlines) (~40 GB @ 100M).
+  # threads:12 lets all 5 SIFT2 jobs (1 main + 4 enrichment) co-run (5x12=60<=64).
   sift2:
-    threads: 16
-    mem_mb: 64000       
-    time_min: 60
-    
-  filter_tractogram:  
+    threads: 12
+    mem_mb: 48000
+    time_min: 120
+
+  # Endpoint filtering of the final tractogram. mem ~= O(streamlines) (~5.5 GB @ 100M).
+  filter_tractogram:
     threads: 2
-    mem_mb: 16000     
+    mem_mb: 8000
+    time_min: 60
+
+  # --- enrichment sweep (scales with enrichment_sweep.levels & seeds_per_voxel) ---
+  enrich_roi_tckgen_max:
+    threads: 16
+    mem_mb: 2000
+    time_min: 45
+
+  enrich_roi_subsample:        # memory-bound, single-threaded; mem ~= O(streamlines)
+    threads: 2
+    mem_mb: 28000
     time_min: 30
+
+  enrich_sift2:                # mem ~= O(streamlines) (~38 GB); threads:12 for 5-wide concurrency
+    threads: 12
+    mem_mb: 46000
+    time_min: 120
+
+  enrich_combine:
+    threads: 2
+    mem_mb: 3000
+    time_min: 90
+
+  enrich_filter_tractogram:
+    threads: 2
+    mem_mb: 8000
+    time_min: 60
+
+  enrich_filter_tractogram_propagated:
+    threads: 2
+    mem_mb: 8000
+    time_min: 60
+
+  enrich_propagate_weights:    # one weight per streamline -> mem ~= O(streamlines)
+    threads: 1
+    mem_mb: 10000
+    time_min: 15
+
 
 mask_sweep:
   enabled: true
@@ -1064,11 +1128,11 @@ enrichment_sweep:
     - L
     - R
   levels:                    # seeds-per-voxel-equivalent levels; max() is generated, rest subsampled
-    - 5000
-    - 3000
-    - 1000
-  subsample_seed: 42         # RNG seed for reproducible NESTED random subsampling
-  subsample_seed: 7         # RNG seed for reproducible NESTED random subsampling
+    - 1
+    - 5
+    - 10
+  subsample_seed: 427         # RNG seed for reproducible NESTED random subsampling
+  subsample_seed: 78         # RNG seed for reproducible NESTED random subsampling
                              # (lower levels are strict subsets of higher ones:
                              #  1000 ⊂ 3000 ⊂ 5000)
   targets:                   # atlas(es) for the per-condition voxelwise connectivity fingerprint

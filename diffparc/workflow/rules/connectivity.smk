@@ -410,7 +410,7 @@ rule qc_tractogram_wb:
         "benchmarks/sub-{subject}/connectivity/sub-{subject}_desc-final_tractogram_qc.tsv"
     threads: lambda wc: res("qc_tractogram_wb", "threads", 4)
     resources:
-        mem_mb=lambda wc: res("qc_tractogram_wb", "mem_mb", 16000),
+        mem_mb=lambda wc: res("qc_tractogram_wb", "mem_mb", 8000),
         time=lambda wc: res("qc_tractogram_wb", "time_min", 120),
     container:
         config["singularity"]["diffparc"]
@@ -486,7 +486,7 @@ rule qc_tractogram_filtered:
         )
     threads: lambda wc: res("qc_tractogram_filtered", "threads", 2)
     resources:
-        mem_mb=lambda wc: res("qc_tractogram_filtered", "mem_mb", 8000),
+        mem_mb=lambda wc: res("qc_tractogram_filtered", "mem_mb", 2000),
         time=lambda wc: res("qc_tractogram_filtered", "time_min", 30),
     container:
         config["singularity"]["diffparc"]
