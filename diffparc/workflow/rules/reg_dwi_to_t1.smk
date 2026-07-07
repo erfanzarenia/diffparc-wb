@@ -1,5 +1,19 @@
 # if we skip dwi preproc, then we are loading dwi preproc in T1w space:
 
+
+def get_native_dwi_desc():
+    # Which desc tag identifies the canonical native (pre-registration,
+    # pre-resample) DWI that the standalone DWI->T1w registration/resample
+    # below (rule reg_dwi_to_t1 / resample_dwi_to_t1w) should operate on. When
+    # bias correction is enabled, this is the DWI bias-corrected in native
+    # space (rule dwibiascorrect_native in preproc_dwi.smk) -- so both this
+    # registration/resample AND the native DTI fit (mrtrix.smk) consume the
+    # SAME bias-corrected DWI, rather than each fitting an independent bias
+    # field. Only relevant to the self-contained ('else', non-import) branch
+    # below: import mode bypasses this file's registration/resample entirely.
+    return "biascorr" if config.get("dwi_biascorrect", True) else "preproc"
+
+
 if config["in_prepdwi_dir"]:
 
     rule import_prepdwi_dwi:
@@ -146,10 +160,14 @@ else:
                 datatype="dwi",
                 **subj_wildcards
             ),
+            # Native (bias-corrected, when enabled) DWI -- see
+            # get_native_dwi_desc(). This is the single resample onto the
+            # T1w/1.25mm grid, now operating on the bias-corrected signal
+            # rather than bias-correcting again afterwards.
             dwi=bids(
                 root=root,
                 suffix="dwi.nii.gz",
-                desc="preproc",
+                desc=get_native_dwi_desc(),
                 datatype="dwi",
                 **subj_wildcards
             ),
@@ -163,7 +181,13 @@ else:
                 **subj_wildcards
             ),
         params:
-            interpolation="Linear",
+            # Cubic B-spline: matches SnakeDWI's resample_dwi_to_t1w (see that
+            # file for rationale). This 'else' branch is DiffParcSurf's own
+            # standalone registration (used when NOT importing from SnakeDWI),
+            # so it needs the same kernel and the same single-resample-to-
+            # 'custom'-resolution treatment to avoid re-deriving worse
+            # behaviour than the SnakeDWI path.
+            interpolation="BSpline[3]",
         output:
             dwi=bids(
                 root=root,
@@ -291,10 +315,14 @@ rule reg_dwi_to_t1:
             datatype="anat",
             **subj_wildcards
         ),
+        # Native (bias-corrected, when enabled) b0 -- see get_native_dwi_desc().
+        # Registration here uses raw NMI on real intensities (unlike SnakeDWI's
+        # SynthSR-normalized registration), so an uncorrected bias field is a
+        # more direct concern for the alignment cost function itself.
         avgb0=bids(
             root=root,
             suffix="b0.nii.gz",
-            desc="preproc",
+            desc=get_native_dwi_desc(),
             datatype="dwi",
             **subj_wildcards
         ),

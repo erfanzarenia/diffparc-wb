@@ -1274,3 +1274,91 @@ rule cp_to_preproc_dwi:
     run:
         for in_file, out_file in zip(input, output):
             shell("cp -v {in_file} {out_file}")
+
+
+# ---------------------------------------------------------------------------
+# DWI signal bias correction -- NATIVE space, immediately after eddy.
+#
+# Standard MRtrix/field convention is denoise -> degibbs -> motion/eddy/
+# susceptibility correction -> bias correction -> response/FOD estimation,
+# with bias correction done in native diffusion space, before any
+# registration to a structural reference. Moved here from a previous
+# post-registration/post-resample position so ONE bias-corrected DWI is
+# computed and shared by:
+#   * the native DTI fit (dwi2tensor_native in mrtrix.smk), directly, and
+#   * the FOD/tractography branch, via DWI->T1w registration/resample
+#     (reg_dwi_to_t1.smk's get_native_dwi_desc()), which now registers and
+#     resamples this bias-corrected image instead of the raw preproc DWI.
+# This replaces two independently-estimated bias fields (one native, one
+# post-resample) with one.
+#
+# Only meaningful in the self-contained (non-import) pipeline. When importing
+# from snakedwi/prepdwi, the DWI arrives already registered/resampled from an
+# external pipeline that does not itself bias-correct, so bias correction (if
+# enabled) still has to happen downstream in T1w space -- see rule
+# dwibiascorrect in mrtrix.smk, which remains for that mode only.
+#
+# Bias correction is a smooth multiplicative intensity operation, not a
+# spatial resample, so gradient directions/timings are untouched: bvec/bval
+# are carried through unchanged alongside the corrected image.
+# ---------------------------------------------------------------------------
+rule dwibiascorrect_native:
+    input:
+        dwi=bids(
+            root=root, suffix="dwi.nii.gz", desc="preproc",
+            datatype="dwi", **subj_wildcards
+        ),
+        bvec=bids(
+            root=root, suffix="dwi.bvec", desc="preproc",
+            datatype="dwi", **subj_wildcards
+        ),
+        bval=bids(
+            root=root, suffix="dwi.bval", desc="preproc",
+            datatype="dwi", **subj_wildcards
+        ),
+        mask=get_dwi_mask(),
+    output:
+        dwi=bids(
+            root=root, suffix="dwi.nii.gz", desc="biascorr",
+            datatype="dwi", **subj_wildcards
+        ),
+        bvec=bids(
+            root=root, suffix="dwi.bvec", desc="biascorr",
+            datatype="dwi", **subj_wildcards
+        ),
+        bval=bids(
+            root=root, suffix="dwi.bval", desc="biascorr",
+            datatype="dwi", **subj_wildcards
+        ),
+    log:
+        "logs/sub-{subject}/dwi/sub-{subject}_dwibiascorrect_native.log",
+    benchmark:
+        "benchmarks/sub-{subject}/dwi/sub-{subject}_desc-dwibiascorrect_native.tsv"
+    threads: 4
+    resources:
+        mem_mb=8000,
+        time=30,
+    group:
+        "subj"
+    container:
+        config["singularity"]["diffparc"]
+    shell:
+        r"""
+        set -euo pipefail
+        mkdir -p "$(dirname "{output.dwi}")"
+        mkdir -p "$(dirname "{log}")"
+
+        scratch="$(mktemp -d)"
+        trap 'rm -rf "$scratch"' EXIT
+
+        dwibiascorrect ants "{input.dwi}" "{output.dwi}" \
+          -fslgrad "{input.bvec}" "{input.bval}" \
+          -mask "{input.mask}" \
+          -nthreads {threads} \
+          -scratch "$scratch" \
+          -force \
+          &> "{log}"
+
+        cp "{input.bvec}" "{output.bvec}"
+        cp "{input.bval}" "{output.bval}"
+        """
