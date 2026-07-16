@@ -60,7 +60,10 @@ rule roi_tckgen:
         mkdir -p "$(dirname "{output.tck}")"
         mkdir -p "$(dirname "{output.tckinfo}")"
         mkdir -p "$(dirname "{log}")"
-    
+
+        # ROI-enrichment tracking is UNIDIRECTIONAL (-seed_unidirectional: track in
+        # one direction only from each ROI seed) and uses -backtrack (ACT-aware
+        # backtracking), matching the whole-brain pass.
         tckgen -nthreads {threads} -algorithm iFOD2 \
           -act "{input.five_tt}" \
           -backtrack \

@@ -54,6 +54,9 @@ rule wb_tckgen_chunk:
         mkdir -p "$(dirname "{log}")"
         export MRTRIX_RNG_SEED={params.mrtrix_rng_seed}
 
+        # Whole-brain tracking is BIDIRECTIONAL (MRtrix default: no
+        # -seed_unidirectional flag -> tracking proceeds both ways from each
+        # dynamic seed) and uses -backtrack (ACT-aware backtracking).
         tckgen -nthreads {threads} -algorithm iFOD2 \
           -act "{input.five_tt}" \
           -backtrack \
