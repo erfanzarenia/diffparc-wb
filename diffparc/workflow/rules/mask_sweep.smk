@@ -17,6 +17,19 @@ SWEEP_SEEDS = ["vtasnc", "snc", "vtapbp", "vtasncpbp"]
 HEMIS = ["L", "R"]
 TARGETS = ["Yeo7TianS3"]
 
+# QC directory layout (ORGANIZATIONAL). The sweep has many combos (variant x
+# threshold x seed x mask_source x hemi), so QC is grouped by threshold and then by
+# type -- mirroring rules/enrichment_sweep.smk's cond-{cond}/{connectome,tractogram}/
+# hierarchy -- instead of cluttering one flat directory:
+#   qc/mask_sweep/{seed}/{mask_source}/thr-{thr_tag}/connectome/   connectivity qc json,
+#                                                                  assignments (per variant)
+#   qc/mask_sweep/{seed}/{mask_source}/thr-{thr_tag}/tractogram/   seed-filtered tckinfo +
+#                                                                  visual QC (tdi/endpoints/
+#                                                                  decmap/subset/lengths)
+_MS_QC_THR = "sub-{subject}/qc/mask_sweep/{seed}/{mask_source}/thr-{thr_tag}"
+_MS_QC_CONN = _MS_QC_THR + "/connectome"
+_MS_QC_TRACT = _MS_QC_THR + "/tractogram"
+
 MASK_SWEEP_ENABLED = config.get("mask_sweep", {}).get("enabled", False)
 
 MASK_SOURCES = config.get("mask_sweep", {}).get(
@@ -88,19 +101,60 @@ def sweep_partner_probseg(wc):
     return _seed_probseg_path(wc.subject, wc.hemi, partner, wc.mask_source)
 
 
-rule all_mask_sweep:
-    input:
-        expand(
+def _mask_sweep_all_outputs():
+    """Convenience-target output list for all_mask_sweep. Kept consistent with the
+    Snakefile's get_mask_sweep_outputs(): baseline matrices + config-gated corrected
+    variants + (when tractography_qc) the sweep visual QC."""
+    if not MASK_SWEEP_ENABLED:
+        return []
+
+    common = dict(
+        subject=SUBJECTS,
+        mask_source=MASK_SOURCES,
+        hemi=HEMIS,
+        seed=SWEEP_SEEDS,
+        targets=TARGETS,
+        thr_tag=threshold_tag_list(),
+    )
+
+    out = expand(
+        "sub-{subject}/tracts/mask_sweep/{seed}/{mask_source}/"
+        "sub-{subject}_hemi-{hemi}_label-{seed}_thr-{thr_tag}_desc-{targets}_connectivity_matrix.csv",
+        **common,
+    )
+
+    meas = conn_variant_meas_enabled()
+    if meas:
+        out += expand(
             "sub-{subject}/tracts/mask_sweep/{seed}/{mask_source}/"
-            "sub-{subject}_hemi-{hemi}_label-{seed}_thr-{thr_tag}_desc-{targets}_connectivity_matrix.csv",
+            "sub-{subject}_hemi-{hemi}_label-{seed}_thr-{thr_tag}_desc-{targets}"
+            "_meas-{meas}_connectivity_matrix.csv",
+            meas=meas,
+            **common,
+        )
+
+    if config.get("tractography_qc", True):
+        arts = ["tdi.mif", "endpoints.mif", "decmap.mif", "subset.tck",
+                "lengths.csv", "lengths.png"]
+        # Visual QC is variant-independent (one tractogram per threshold): no {targets}.
+        out += expand(
+            _MS_QC_TRACT + "/"
+            "sub-{subject}_hemi-{hemi}_label-{seed}_thr-{thr_tag}_desc-seedfiltered_{art}",
             subject=SUBJECTS,
             mask_source=MASK_SOURCES,
             hemi=HEMIS,
             seed=SWEEP_SEEDS,
-            targets=TARGETS,
             thr_tag=threshold_tag_list(),
-        ) if MASK_SWEEP_ENABLED else []
-        
+            art=arts,
+        )
+
+    return out
+
+
+rule all_mask_sweep:
+    input:
+        _mask_sweep_all_outputs()
+
         
 # -----------------------------
 # Brainstem Injection seed source
@@ -423,7 +477,7 @@ rule sweep_filter_tractogram:
             + "sub-{subject}_hemi-{hemi}_label-{seed}_thr-{thr_tag}_desc-seedfiltered_sift2_weights.txt"
         ),
         tckinfo=(
-            "sub-{subject}/qc/mask_sweep/{seed}/{mask_source}/"
+            _MS_QC_TRACT + "/"
             "sub-{subject}_hemi-{hemi}_label-{seed}_thr-{thr_tag}_desc-seedfiltered_method-mrtrix_tractography_tckinfo.txt"
         ),
     log:
@@ -518,27 +572,28 @@ rule sweep_voxelwise_connectivity:
             "sub-{subject}/qc/sub-{subject}_desc-final_method-mrtrix_sift2_mu.txt"
         ),
     output:
-        # Primary matrix is SIFT2-mu-scaled (FD-calibrated); raw weight-sum block
-        # preserved alongside. Same scheme as connectivity.smk / enrichment_sweep.smk.
+        # MAIN deliverable = the RAW SIFT2 weight-sum block (untagged csv); the
+        # SIFT2-mu-scaled block is preserved alongside as meas-muscaled. Same scheme
+        # as connectivity.smk (mirrored naming).
         connectivity_matrix=(
             "sub-{subject}/tracts/mask_sweep/{seed}/{mask_source}/"
             "sub-{subject}_hemi-{hemi}_label-{seed}_thr-{thr_tag}_desc-{targets}_connectivity_matrix.csv"
         ),
-        connectivity_matrix_raw=(
+        connectivity_matrix_muscaled=(
             "sub-{subject}/tracts/mask_sweep/{seed}/{mask_source}/"
-            "sub-{subject}_hemi-{hemi}_label-{seed}_thr-{thr_tag}_desc-{targets}_meas-raw_connectivity_matrix.csv"
+            "sub-{subject}_hemi-{hemi}_label-{seed}_thr-{thr_tag}_desc-{targets}_meas-muscaled_connectivity_matrix.csv"
         ),
         assignments=(
-            "sub-{subject}/qc/mask_sweep/{seed}/{mask_source}/"
+            _MS_QC_CONN + "/"
             "sub-{subject}_hemi-{hemi}_label-{seed}_thr-{thr_tag}_desc-{targets}_method-mrtrix_assignments.txt"
         ),
         qc_metrics=(
-            "sub-{subject}/qc/mask_sweep/{seed}/{mask_source}/"
+            _MS_QC_CONN + "/"
             "sub-{subject}_hemi-{hemi}_label-{seed}_thr-{thr_tag}_desc-{targets}_connectivity_qc.json"
         ),
         connectome_full=temp(
             config["tmp_dir"]
-            + "/sub-{subject}/qc/mask_sweep/{seed}/{mask_source}/"
+            + "/sub-{subject}/qc/mask_sweep/{seed}/{mask_source}/thr-{thr_tag}/connectome/"
             + "sub-{subject}_hemi-{hemi}_label-{seed}_thr-{thr_tag}_desc-{targets}_connectome_full.txt"
         ),
     log:
@@ -570,13 +625,154 @@ rule sweep_voxelwise_connectivity:
           "{input.tractogram}" "{input.nodes}" "{output.connectome_full}" \
           &> "{log}"
 
+        # --out-matrix is the script's "primary" (mu-scaled) -> meas-muscaled;
+        # --out-matrix-raw is the RAW block -> the untagged main deliverable.
+        python "{params.slice_script}" \
+          --connectome "{output.connectome_full}" \
+          --voxel-index "{input.seed_voxel_index}" \
+          --header "{params.target_labels}" \
+          --out-matrix "{output.connectivity_matrix_muscaled}" \
+          --out-matrix-raw "{output.connectivity_matrix}" \
+          --mu-file "{input.mu}" \
+          --out-qc "{output.qc_metrics}" \
+          &>> "{log}"
+        """
+
+
+# -----------------------------
+# Configurable connectivity-matrix variants (config: connectivity_variants)
+# Mirrors rules/connectivity.smk:connectivity_variant on the sweep seed-filtered
+# tractogram, using the SAME meas-tag naming (thr-{thr_tag} is the only extra
+# sweep entity). Additive to the baseline raw + mu-scaled matrices above.
+# -----------------------------
+
+rule sweep_connectivity_variant:
+    wildcard_constraints:
+        meas=CONN_VARIANT_MEAS_CONSTRAINT,
+    input:
+        tractogram=rules.sweep_filter_tractogram.output.tractogram,
+        sift2_weights=rules.sweep_filter_tractogram.output.sift2_weights,
+        nodes=rules.sweep_build_seed_nodes.output.nodes,
+        seed_voxel_index=rules.sweep_build_seed_nodes.output.seed_voxel_index,
+        # Same global main-pipeline SIFT2 mu the baseline sweep matrix uses.
+        mu=ancient(
+            "sub-{subject}/qc/sub-{subject}_desc-final_method-mrtrix_sift2_mu.txt"
+        ),
+    output:
+        connectivity_matrix=(
+            "sub-{subject}/tracts/mask_sweep/{seed}/{mask_source}/"
+            "sub-{subject}_hemi-{hemi}_label-{seed}_thr-{thr_tag}_desc-{targets}"
+            "_meas-{meas}_connectivity_matrix.csv"
+        ),
+        qc_metrics=(
+            _MS_QC_CONN + "/"
+            "sub-{subject}_hemi-{hemi}_label-{seed}_thr-{thr_tag}_desc-{targets}"
+            "_meas-{meas}_connectivity_qc.json"
+        ),
+        connectome_full=temp(
+            config["tmp_dir"]
+            + "/sub-{subject}/qc/mask_sweep/{seed}/{mask_source}/thr-{thr_tag}/connectome/"
+            + "sub-{subject}_hemi-{hemi}_label-{seed}_thr-{thr_tag}_desc-{targets}"
+            + "_meas-{meas}_connectome_full.txt"
+        ),
+    log:
+        "logs/sub-{subject}/mask_sweep/{seed}/{mask_source}/sub-{subject}_hemi-{hemi}_label-{seed}_thr-{thr_tag}_desc-{targets}_meas-{meas}_connectivity_variant.log",
+    benchmark:
+        "benchmarks/sub-{subject}/mask_sweep/{seed}/{mask_source}/sub-{subject}_hemi-{hemi}_label-{seed}_thr-{thr_tag}_desc-{targets}_meas-{meas}_connectivity_variant.tsv",
+    params:
+        slice_script=lambda wc: SLICE_BLOCK_SCRIPT,
+        target_labels=lambda wc: ",".join(config["targets"][wc.targets]["labels"]),
+        target_search_radius=lambda wc: config.get("mrtrix", {}).get("target_search_radius", 4),
+        scale_flags=lambda wc: CONN_VARIANT_RECIPES[wc.meas]["scale"],
+        use_mu=lambda wc: CONN_VARIANT_RECIPES[wc.meas]["mu"],
+    threads: lambda wc: config.get("mrtrix", {}).get("voxelagg_threads", 1)
+    resources:
+        mem_mb=2000,
+        time=90
+    container:
+        config["singularity"]["diffparc"]
+    shell:
+        r"""
+        set -euo pipefail
+        mkdir -p "$(dirname "{output.connectivity_matrix}")"
+        mkdir -p "$(dirname "{output.qc_metrics}")"
+        mkdir -p "$(dirname "{output.connectome_full}")"
+        mkdir -p "$(dirname "{log}")"
+
+        tck2connectome -nthreads {threads} -force -symmetric \
+          {params.scale_flags} \
+          -assignment_radial_search {params.target_search_radius} \
+          -tck_weights_in "{input.sift2_weights}" \
+          "{input.tractogram}" "{input.nodes}" "{output.connectome_full}" \
+          &> "{log}"
+
+        MU_ARG=""
+        if [ "{params.use_mu}" -eq 1 ]; then MU_ARG="--mu-file {input.mu}"; fi
+
         python "{params.slice_script}" \
           --connectome "{output.connectome_full}" \
           --voxel-index "{input.seed_voxel_index}" \
           --header "{params.target_labels}" \
           --out-matrix "{output.connectivity_matrix}" \
-          --out-matrix-raw "{output.connectivity_matrix_raw}" \
-          --mu-file "{input.mu}" \
+          $MU_ARG \
           --out-qc "{output.qc_metrics}" \
           &>> "{log}"
+        """
+
+
+# -----------------------------
+# Tractography visual QC for the sweep seed-filtered tractogram.
+# Mirrors rules/connectivity.smk:qc_tractogram_filtered (same scripts/tractogram_qc.py
+# artifacts: TDI, endpoint map, track-weighted DEC, random subset, length CSV+PNG),
+# organized under thr-{thr_tag}/tractogram/. Reuses the shared TRACTOGRAM_QC_SCRIPT /
+# QC_NSUBSAMPLE / QC_SUBSAMPLE_SEED from connectivity.smk. Gated by tractography_qc
+# (via get_mask_sweep_outputs / all_mask_sweep).
+# -----------------------------
+
+rule sweep_qc_tractogram_filtered:
+    input:
+        tck=rules.sweep_filter_tractogram.output.tractogram,
+        weights=rules.sweep_filter_tractogram.output.sift2_weights,
+        template=bids(root=root, datatype="dwi", suffix="mask.mif", **subj_wildcards),
+    output:
+        tdi=_MS_QC_TRACT + "/sub-{subject}_hemi-{hemi}_label-{seed}_thr-{thr_tag}_desc-seedfiltered_tdi.mif",
+        endpoints=_MS_QC_TRACT + "/sub-{subject}_hemi-{hemi}_label-{seed}_thr-{thr_tag}_desc-seedfiltered_endpoints.mif",
+        decmap=_MS_QC_TRACT + "/sub-{subject}_hemi-{hemi}_label-{seed}_thr-{thr_tag}_desc-seedfiltered_decmap.mif",
+        subset=_MS_QC_TRACT + "/sub-{subject}_hemi-{hemi}_label-{seed}_thr-{thr_tag}_desc-seedfiltered_subset.tck",
+        lengths_csv=_MS_QC_TRACT + "/sub-{subject}_hemi-{hemi}_label-{seed}_thr-{thr_tag}_desc-seedfiltered_lengths.csv",
+        lengths_png=_MS_QC_TRACT + "/sub-{subject}_hemi-{hemi}_label-{seed}_thr-{thr_tag}_desc-seedfiltered_lengths.png",
+    params:
+        script=lambda wc: TRACTOGRAM_QC_SCRIPT,
+        n_subsample=QC_NSUBSAMPLE,
+        seed=QC_SUBSAMPLE_SEED,
+    log:
+        "logs/sub-{subject}/mask_sweep/{seed}/{mask_source}/sub-{subject}_hemi-{hemi}_label-{seed}_thr-{thr_tag}_desc-seedfiltered_tractogram_qc.log",
+    benchmark:
+        "benchmarks/sub-{subject}/mask_sweep/{seed}/{mask_source}/sub-{subject}_hemi-{hemi}_label-{seed}_thr-{thr_tag}_desc-seedfiltered_tractogram_qc.tsv",
+    threads: 2
+    resources:
+        mem_mb=2000,
+        time=30
+    container:
+        config["singularity"]["diffparc"]
+    shell:
+        r"""
+        set -euo pipefail
+        mkdir -p "$(dirname "{output.tdi}")"
+        mkdir -p "$(dirname "{log}")"
+
+        python "{params.script}" \
+          --tck "{input.tck}" \
+          --template "{input.template}" \
+          --weights "{input.weights}" \
+          --out-tdi "{output.tdi}" \
+          --out-endpoints "{output.endpoints}" \
+          --out-dec "{output.decmap}" \
+          --out-subset "{output.subset}" \
+          --out-lengths-csv "{output.lengths_csv}" \
+          --out-lengths-png "{output.lengths_png}" \
+          --n-subsample {params.n_subsample} \
+          --seed {params.seed} \
+          --nthreads {threads} \
+          &> "{log}"
         """

@@ -995,8 +995,8 @@ mrtrix:
 
 mrtrix_rng_seed: 7 #random number generator seed for reproducible results
   
-wb_chunk_count: 4
-wb_chunk_streamlines: 25000000   # 4 x 25M = 100M total (unchanged); fills the 64-core node
+wb_chunk_count: 2
+wb_chunk_streamlines: 50000000   # 4 x 25M = 100M total ; fills the 64-core node
 
 roi_enrichment:
   enabled: True
@@ -1075,18 +1075,50 @@ resources:
     time_min: 15
 
 
+# -----------------------------------------------------------------------------
+# Connectivity matrix variants (rules/connectivity.smk + rules/mask_sweep.smk)
+# Configurable, additive seed-voxel x atlas-target connectivity matrices. Each
+# variant applies a different tck2connectome edge-scaling recipe (+/- SIFT2-mu
+# scaling); the exact processing is spelled out in the filename `meas-` tag so it
+# is unambiguous. The SAME naming is used for the main tracts/ matrices and the
+# mask-sweep matrices.
+#
+#   config key                              filename tag              tck2connectome                  SIFT2 mu
+#   raw                                     (no tag; primary csv)     (none)                          no   [baseline, MAIN deliverable]
+#   mu_scaled                               meas-muscaled             (none)                          yes  [baseline]
+#   volume_bias_corrected                   meas-invnodevol           -scale_invnodevol               no
+#   length_bias_corrected                   meas-length               -scale_length                   no
+#   volume_length_bias_corrected            meas-invnodevollength     -scale_invnodevol -scale_length no
+#   volume_length_bias_corrected_mu_scaled  meas-invnodevollengthmu   -scale_invnodevol -scale_length yes
+#
+# Length bias correction uses -scale_length (weight each streamline's contribution
+# BY its length), UP-weighting longer streamlines to counter their under-representation
+# in probabilistic tracking (NOT -scale_invlength, which would down-weight them).
+#
+# raw + mu_scaled are the pipeline's BASELINE outputs: always produced by the core
+# voxelwise_connectivity / sweep_voxelwise_connectivity rules. RAW is the MAIN
+# deliverable (the untagged connectivity_matrix.csv that downstream consumes);
+# mu_scaled is preserved alongside as the meas-muscaled block. Their keys below are
+# informational (they document the baseline) and do not gate production. The four
+# CORRECTED variants are the switched ones: each is built by the additive
+# connectivity_variant / sweep_connectivity_variant rules only when its key is true.
+connectivity_variants:
+  raw: true                                     # baseline (always produced)
+  mu_scaled: true                               # baseline (always produced)
+  volume_bias_corrected: true
+  length_bias_corrected: true
+  volume_length_bias_corrected: true
+  volume_length_bias_corrected_mu_scaled: true
+
 mask_sweep:
   enabled: true
   thresholds:
-    - 0.05
     - 0.1
-    - 0.15
     - 0.2
-    - 0.25
     - 0.30
   mask_sources:
     - native
-    - brainsteminjected
+#    - brainsteminjected
 
 # -----------------------------------------------------------------------------
 # Tractography visual QC (rules/connectivity.smk + rules/enrichment_sweep.smk)
@@ -1122,15 +1154,15 @@ microstructure_connectomes_metrics:
 # Does NOT alter core pipeline behavior. Off by default.
 # -----------------------------------------------------------------------------
 enrichment_sweep:
-  enabled: True
+  enabled: False
   seed: vtasncpbp            # ROI seed to sweep (per-hemi seed mask must exist)
   hemis:
     - L
     - R
   levels:                    # seeds-per-voxel-equivalent levels; max() is generated, rest subsampled
-    - 1
-    - 5
-    - 10
+    - 1000
+    - 5000
+    - 10000
   subsample_seed: 427         # RNG seed for reproducible NESTED random subsampling
   subsample_seed: 78         # RNG seed for reproducible NESTED random subsampling
                              # (lower levels are strict subsets of higher ones:
@@ -1140,7 +1172,7 @@ enrichment_sweep:
   volume_bias_correction: True  # also emit a volume-bias-corrected fingerprint
                                  # (tck2connectome -scale_invnodevol) per condition,
                                  # alongside the uncorrected one. Off by default.
-  sift2_propagated: True    # also emit a SECOND SIFT2 branch: instead of re-fitting
+  sift2_propagated: False    # also emit a SECOND SIFT2 branch: instead of re-fitting
                              # SIFT2 after each enrichment merge (the default branch),
                              # fit SIFT2 once on the maximal combined tractogram and
                              # PROPAGATE those weights to lower levels via the nested

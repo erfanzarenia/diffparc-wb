@@ -263,18 +263,19 @@ rule voxelwise_connectivity:
         seed_voxel_index=rules.build_seed_nodes.output.seed_voxel_index,
         mu=rules.run_sift2.output.mu,
     output:
-        # Primary matrix is SIFT2-mu-scaled (FD-calibrated); the raw weight-sum
-        # block is preserved alongside for provenance/reversibility. mu is global,
-        # so row-normalizing the primary gives the same fingerprint as the raw.
+        # MAIN deliverable = the RAW SIFT2 weight-sum block (untagged csv). The
+        # SIFT2-mu-scaled (FD-calibrated) block is preserved alongside as
+        # meas-muscaled. mu is a single global scalar, so row-normalizing either
+        # gives the same fingerprint.
         connectivity_matrix=(
             "sub-{subject}/tracts/"
             "sub-{subject}_hemi-{hemi}_label-{seed}_desc-{targets}"
             "_connectivity_matrix.csv"
         ),
-        connectivity_matrix_raw=(
+        connectivity_matrix_muscaled=(
             "sub-{subject}/tracts/"
             "sub-{subject}_hemi-{hemi}_label-{seed}_desc-{targets}"
-            "_meas-raw_connectivity_matrix.csv"
+            "_meas-muscaled_connectivity_matrix.csv"
         ),
         assignments=(
             "sub-{subject}/qc/connectivity/"
@@ -334,13 +335,117 @@ rule voxelwise_connectivity:
           "{input.tractogram}" "{input.nodes}" "{output.connectome_full}" \
           &> "{log}"
 
+        # --out-matrix is the script's "primary" (mu-scaled) -> meas-muscaled;
+        # --out-matrix-raw is the RAW block -> the untagged main deliverable.
+        python "{params.slice_script}" \
+          --connectome "{output.connectome_full}" \
+          --voxel-index "{input.seed_voxel_index}" \
+          --header "{params.target_labels}" \
+          --out-matrix "{output.connectivity_matrix_muscaled}" \
+          --out-matrix-raw "{output.connectivity_matrix}" \
+          --mu-file "{input.mu}" \
+          --out-qc "{output.qc_metrics}" \
+          &>> "{log}"
+        """
+
+
+# -----------------------------
+# Configurable connectivity-matrix variants (config: connectivity_variants)
+# -----------------------------
+rule connectivity_variant:
+    """One config-gated connectivity-matrix VARIANT for the main seed-filtered
+    tractogram, additive to voxelwise_connectivity's baseline raw + mu-scaled
+    matrices.
+
+    A single wildcard-driven rule covers the four corrected variants; the `meas`
+    tag (constrained so it can never capture the baseline meas-muscaled block) names
+    the exact tck2connectome edge scaling applied, and whether SIFT2-mu scaling is
+    then applied, so the processing is unambiguous from the filename:
+        meas-invnodevol          -scale_invnodevol                (volume bias corrected)
+        meas-length              -scale_length                    (length bias corrected: up-weights longer streamlines)
+        meas-invnodevollength    -scale_invnodevol -scale_length  (volume + length)
+        meas-invnodevollengthmu    ...same, then x SIFT2 mu        (volume + length + mu-scaled)
+    Geometric corrections are applied by tck2connectome; the global SIFT2-mu factor
+    (when requested) is applied last by slice_connectome_block.py. This registry is
+    shared verbatim with the mask-sweep variants (mirrored naming)."""
+    wildcard_constraints:
+        meas=CONN_VARIANT_MEAS_CONSTRAINT,
+    input:
+        tractogram=rules.filter_tractogram.output.tractogram,
+        sift2_weights=rules.filter_tractogram.output.sift2_weights,
+        nodes=rules.build_seed_nodes.output.nodes,
+        seed_voxel_index=rules.build_seed_nodes.output.seed_voxel_index,
+        mu=rules.run_sift2.output.mu,
+    output:
+        connectivity_matrix=(
+            "sub-{subject}/tracts/"
+            "sub-{subject}_hemi-{hemi}_label-{seed}_desc-{targets}"
+            "_meas-{meas}_connectivity_matrix.csv"
+        ),
+        qc_metrics=(
+            "sub-{subject}/qc/connectivity/"
+            "sub-{subject}_hemi-{hemi}_label-{seed}_desc-{targets}"
+            "_meas-{meas}_connectivity_qc.json"
+        ),
+        connectome_full=temp(
+            config["tmp_dir"]
+            + "/sub-{subject}/qc/connectivity/"
+            + "sub-{subject}_hemi-{hemi}_label-{seed}_desc-{targets}"
+            + "_meas-{meas}_connectome_full.txt"
+        ),
+    log:
+        (
+            "logs/sub-{subject}/connectivity/"
+            "sub-{subject}_hemi-{hemi}_label-{seed}_desc-{targets}"
+            "_meas-{meas}_connectivity_variant.log"
+        ),
+    benchmark:
+        (
+            "benchmarks/sub-{subject}/connectivity/"
+            "sub-{subject}_hemi-{hemi}_label-{seed}_desc-{targets}"
+            "_meas-{meas}_connectivity_variant.tsv"
+        ),
+    params:
+        slice_script=lambda wc: SLICE_BLOCK_SCRIPT,
+        target_labels=lambda wc: ",".join(config["targets"][wc.targets]["labels"]),
+        target_search_radius=lambda wc: config.get("mrtrix", {}).get(
+            "target_search_radius", 4
+        ),
+        scale_flags=lambda wc: CONN_VARIANT_RECIPES[wc.meas]["scale"],
+        use_mu=lambda wc: CONN_VARIANT_RECIPES[wc.meas]["mu"],
+    threads: lambda wc: res("connectivity_variant", "threads", 2)
+    resources:
+        mem_mb=lambda wc: res("connectivity_variant", "mem_mb", 4000),
+        time=lambda wc: res("connectivity_variant", "time_min", 15)
+    container:
+        config["singularity"]["diffparc"]
+    group:
+        "subj"
+    shell:
+        r"""
+        set -euo pipefail
+
+        mkdir -p "$(dirname "{output.connectivity_matrix}")"
+        mkdir -p "$(dirname "{output.qc_metrics}")"
+        mkdir -p "$(dirname "{output.connectome_full}")"
+        mkdir -p "$(dirname "{log}")"
+
+        tck2connectome -nthreads {threads} -force -symmetric \
+          {params.scale_flags} \
+          -assignment_radial_search {params.target_search_radius} \
+          -tck_weights_in "{input.sift2_weights}" \
+          "{input.tractogram}" "{input.nodes}" "{output.connectome_full}" \
+          &> "{log}"
+
+        MU_ARG=""
+        if [ "{params.use_mu}" -eq 1 ]; then MU_ARG="--mu-file {input.mu}"; fi
+
         python "{params.slice_script}" \
           --connectome "{output.connectome_full}" \
           --voxel-index "{input.seed_voxel_index}" \
           --header "{params.target_labels}" \
           --out-matrix "{output.connectivity_matrix}" \
-          --out-matrix-raw "{output.connectivity_matrix_raw}" \
-          --mu-file "{input.mu}" \
+          $MU_ARG \
           --out-qc "{output.qc_metrics}" \
           &>> "{log}"
         """

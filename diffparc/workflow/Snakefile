@@ -29,6 +29,9 @@ config.setdefault("in_snakedwi_dir", False)
 config.setdefault("dwi_biascorrect", False)
 config.setdefault("mask_sweep", {})
 config["mask_sweep"].setdefault("enabled", False)
+# Absent connectivity_variants section => only the baseline raw + mu-scaled
+# matrices (current behaviour); the four corrected variants stay OFF.
+config.setdefault("connectivity_variants", {})
 
 config.setdefault("vbm", {
     "tissue_lut": {"CSF": 1, "GM": 2, "WM": 3},
@@ -155,6 +158,50 @@ else:
 
 
 # -----------------------------
+# Connectivity matrix variants (config: connectivity_variants)
+# -----------------------------
+# Each variant = a tck2connectome edge-scaling recipe (+/- SIFT2-mu scaling),
+# emitted as an explicitly-named matrix so the exact processing is obvious from
+# the filename `meas-` tag. This registry is defined here (before `rule all` and
+# before the rule includes) so it is shared verbatim by both the main tracts/
+# matrices (rules/connectivity.smk) and the mask-sweep matrices (rules/mask_sweep.smk),
+# guaranteeing the naming is MIRRORED EXACTLY between them.
+#
+# The two baseline variants are produced by the core voxelwise_connectivity /
+# sweep_voxelwise_connectivity rules: RAW is the main deliverable (untagged
+# connectivity_matrix.csv) and mu-scaled is preserved alongside as meas-muscaled.
+# Only the four "corrected" variants below get a dedicated rule.
+#
+# Length bias correction uses -scale_length (weights each streamline's contribution
+# BY its length), which UP-weights longer streamlines to counter their systematic
+# under-representation in probabilistic tracking -- NOT -scale_invlength (which would
+# do the opposite). Volume bias correction uses -scale_invnodevol.
+#   meas tag              -> tck2connectome scale flags                   mu (SIFT2)
+CONN_VARIANT_RECIPES = {
+    "invnodevol":          {"scale": "-scale_invnodevol",               "mu": 0},
+    "length":              {"scale": "-scale_length",                   "mu": 0},
+    "invnodevollength":    {"scale": "-scale_invnodevol -scale_length", "mu": 0},
+    "invnodevollengthmu":  {"scale": "-scale_invnodevol -scale_length", "mu": 1},
+}
+# config key -> meas tag (dict order defines the target-expansion order).
+CONN_VARIANT_KEYS = {
+    "volume_bias_corrected":                  "invnodevol",
+    "length_bias_corrected":                  "length",
+    "volume_length_bias_corrected":           "invnodevollength",
+    "volume_length_bias_corrected_mu_scaled": "invnodevollengthmu",
+}
+# Regex alternation constraining the {meas} wildcard on the variant rules, so they
+# never capture the baseline meas-muscaled block written by the core connectome rules.
+CONN_VARIANT_MEAS_CONSTRAINT = "|".join(CONN_VARIANT_RECIPES.keys())
+
+
+def conn_variant_meas_enabled():
+    """The `meas` tags of the four corrected variants enabled in config."""
+    cfg = config.get("connectivity_variants", {})
+    return [meas for key, meas in CONN_VARIANT_KEYS.items() if cfg.get(key, False)]
+
+
+# -----------------------------
 # Final target helpers
 # -----------------------------
 def get_subj_nlincrop_conn():
@@ -226,6 +273,41 @@ def get_subj_global_conn_sift2():
 
     return files
 
+
+def get_connectivity_variant_outputs():
+    # Additive, config-gated connectivity-matrix variants for the MAIN seed-filtered
+    # tractogram (rules/connectivity.smk: connectivity_variant). Same gating as the
+    # baseline global-conn matrices (no_vol / enable_global_conn). raw + mu-scaled
+    # stay as the baseline outputs above; only the four corrected variants are added.
+    if config["no_vol"] or not config.get("enable_global_conn", False):
+        return []
+
+    meas = conn_variant_meas_enabled()
+    if not meas:
+        return []
+
+    files = []
+    for seed in config["select_seeds"]:
+        files.extend(
+            expand(
+                expand(
+                    "sub-{subject}/tracts/"
+                    "sub-{subject}_hemi-{hemi}_label-{seed}_desc-{targets}"
+                    "_meas-{meas}_connectivity_matrix.csv",
+                    seed=seed,
+                    targets=config["seeds"][seed]["targets"],
+                    hemi=config["hemispheres"],
+                    meas=meas,
+                    allow_missing=True,
+                ),
+                zip,
+                **subj_zip_list,
+            )
+        )
+
+    return files
+
+
 def get_mask_sweep_outputs():
     if not config.get("mask_sweep", {}).get("enabled", False):
         return []
@@ -234,17 +316,58 @@ def get_mask_sweep_outputs():
     mask_sources = config["mask_sweep"].get("mask_sources", ["native"])
     thresholds = config["mask_sweep"].get("thresholds", [])
     thr_tags = [str(t).replace(".", "p") for t in thresholds]
+    # keep seeds/targets in sync with SWEEP_SEEDS/TARGETS in rules/mask_sweep.smk
+    seeds = ["vtasnc", "snc", "vtapbp", "vtasncpbp"]
+    hemis = ["L", "R"]
+    targets = ["Yeo7TianS3"]
 
-    return expand(
-        "sub-{subject}/tracts/mask_sweep/{seed}/{mask_source}/"
-        "sub-{subject}_hemi-{hemi}_label-{seed}_thr-{thr_tag}_desc-{targets}_connectivity_matrix.csv",
+    common = dict(
         subject=subjects,
         mask_source=mask_sources,
-        hemi=["L", "R"],
-        seed=["vtasnc", "snc", "vtapbp", "vtasncpbp"],  # keep in sync with SWEEP_SEEDS in rules/mask_sweep.smk
-        targets=["Yeo7TianS3"],
+        hemi=hemis,
+        seed=seeds,
+        targets=targets,
         thr_tag=thr_tags,
     )
+
+    # Baseline (mu-scaled) matrices -- unchanged.
+    files = expand(
+        "sub-{subject}/tracts/mask_sweep/{seed}/{mask_source}/"
+        "sub-{subject}_hemi-{hemi}_label-{seed}_thr-{thr_tag}_desc-{targets}_connectivity_matrix.csv",
+        **common,
+    )
+
+    # Corrected connectivity-matrix variants (config connectivity_variants), named
+    # identically to the main matrices (rules/mask_sweep.smk: sweep_connectivity_variant).
+    meas = conn_variant_meas_enabled()
+    if meas:
+        files += expand(
+            "sub-{subject}/tracts/mask_sweep/{seed}/{mask_source}/"
+            "sub-{subject}_hemi-{hemi}_label-{seed}_thr-{thr_tag}_desc-{targets}"
+            "_meas-{meas}_connectivity_matrix.csv",
+            meas=meas,
+            **common,
+        )
+
+    # Tractography visual QC for each sweep seed-filtered tractogram, mirroring the
+    # main pipeline (rules/mask_sweep.smk: sweep_qc_tractogram_filtered). Organized
+    # under thr-{thr_tag}/tractogram/. Gated by tractography_qc. The visual QC is
+    # variant-independent (one tractogram per threshold), so it has no {targets} tag.
+    if config.get("tractography_qc", True):
+        arts = ["tdi.mif", "endpoints.mif", "decmap.mif", "subset.tck",
+                "lengths.csv", "lengths.png"]
+        files += expand(
+            "sub-{subject}/qc/mask_sweep/{seed}/{mask_source}/thr-{thr_tag}/tractogram/"
+            "sub-{subject}_hemi-{hemi}_label-{seed}_thr-{thr_tag}_desc-seedfiltered_{art}",
+            subject=subjects,
+            mask_source=mask_sources,
+            hemi=hemis,
+            seed=seeds,
+            thr_tag=thr_tags,
+            art=arts,
+        )
+
+    return files
 
 
 def get_enrichment_sweep_outputs():
@@ -411,6 +534,7 @@ rule all_nlincrop_conn:
 rule all:
     input:
         get_subj_global_conn_sift2(),
+        get_connectivity_variant_outputs(),
         get_mask_sweep_outputs(),
         get_enrichment_sweep_outputs(),
         get_tractography_qc_outputs(),
