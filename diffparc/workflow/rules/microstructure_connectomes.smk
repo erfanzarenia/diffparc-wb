@@ -35,10 +35,6 @@ MICRO_TARGETS = config.get("microstructure_connectomes_targets", ["Yeo7TianS3"])
 MICRO_METRICS = config.get("microstructure_connectomes_metrics", ["FA", "MD", "RD"])
 MICRO_SUBJECTS = sorted(set(inputs.input_zip_lists["T1w"]["subject"]))
 
-# Two core rules (dwi2tensor, dwi_to_tensor) emit the same tensor.mif; nothing
-# requested it before this module, so make the masked one authoritative.
-ruleorder: dwi_to_tensor > dwi2tensor
-
 
 # NOTE: `metric` is constrained PER-RULE below (not globally) -- a global
 # constraint would clash with the many other rules that use a {metric} wildcard
