@@ -7,10 +7,8 @@ configfile: "config/snakebids.yml"
 report: "../workflow/report/workflow.rst"
 
 config.setdefault("anat_only", False)
-config.setdefault("no_surf", False)
 config.setdefault("no_vol", False)
 config.setdefault("use_template_parcellation", False)
-config.setdefault("use_vbm", False)
 
 config.setdefault("use_eddy", False)
 config.setdefault("use_topup", False)
