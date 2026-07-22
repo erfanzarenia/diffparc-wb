@@ -941,7 +941,6 @@ dwi_upsample: false
 dwi_upsample_vox: 1.25   # mm, isotropic (kept for reference / rule params)
 
 enable_global_conn: true
-disable_voxelwise_conn: true
 
 resample_seed_res: '1x1x1mm' #for resampling seeds/targets
 
@@ -973,9 +972,6 @@ show_parallel_eta: False
 nat_only: False
 use_template_parcellation: False
 ###use_vbm: False
-
-methods:
-  - mrtrix
 
 mrtrix:
   step: 0.625
