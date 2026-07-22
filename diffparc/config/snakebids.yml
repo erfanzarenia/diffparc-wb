@@ -1106,18 +1106,8 @@ connectivity_variants:
   volume_length_bias_corrected: true
   volume_length_bias_corrected_mu_scaled: true
 
-mask_sweep:
-  enabled: true
-  thresholds:
-    - 0.1
-    - 0.2
-    - 0.30
-  mask_sources:
-    - native
-#    - brainsteminjected
-
 # -----------------------------------------------------------------------------
-# Tractography visual QC (rules/connectivity.smk + rules/enrichment_sweep.smk)
+# Tractography visual QC (rules/connectivity.smk)
 # For the whole-brain and final seed-filtered tractograms, emit into /qc:
 #   TDI, endpoint map, track-weighted DEC, FOD-based DEC (anatomical background),
 #   a random 200k-streamline subset (.tck) for mrview, and a length histogram.
@@ -1142,36 +1132,3 @@ microstructure_connectomes_metrics:
   - FA
   - MD
   - RD
-
-# -----------------------------------------------------------------------------
-# Experimental enrichment_sweep (additive, fully isolated; see rules/enrichment_sweep.smk)
-# Sweeps ROI seeding strength by generating ONE max-enrichment ROI tractogram and
-# random-subsampling it for lower levels. WB baseline is the reference condition.
-# Does NOT alter core pipeline behavior. Off by default.
-# -----------------------------------------------------------------------------
-enrichment_sweep:
-  enabled: False
-  seed: vtasncpbp            # ROI seed to sweep (per-hemi seed mask must exist)
-  hemis:
-    - L
-    - R
-  levels:                    # seeds-per-voxel-equivalent levels; max() is generated, rest subsampled
-    - 1000
-    - 5000
-    - 10000
-  subsample_seed: 427         # RNG seed for reproducible NESTED random subsampling
-  subsample_seed: 78         # RNG seed for reproducible NESTED random subsampling
-                             # (lower levels are strict subsets of higher ones:
-                             #  1000 ⊂ 3000 ⊂ 5000)
-  targets:                   # atlas(es) for the per-condition voxelwise connectivity fingerprint
-    - Yeo7TianS3
-  volume_bias_correction: True  # also emit a volume-bias-corrected fingerprint
-                                 # (tck2connectome -scale_invnodevol) per condition,
-                                 # alongside the uncorrected one. Off by default.
-  sift2_propagated: False    # also emit a SECOND SIFT2 branch: instead of re-fitting
-                             # SIFT2 after each enrichment merge (the default branch),
-                             # fit SIFT2 once on the maximal combined tractogram and
-                             # PROPAGATE those weights to lower levels via the nested
-                             # subsample (streamlines + their weights). Adds outputs
-                             # tagged `_sift2-propagated`; the default refit branch is
-                             # always kept. Off by default.
