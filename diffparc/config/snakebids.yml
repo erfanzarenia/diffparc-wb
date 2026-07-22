@@ -1,33 +1,23 @@
-#bids_dir: 'test_data/bids_AP_PA'
-#output_dir: 'test_output'
+# =============================================================================
+# diffparc-surf configuration
+# =============================================================================
 
-#enable printing debug statements during parsing -- disable if generating dag visualization
-debug: True
+# ---- Snakebids / BIDS I/O ----------------------------------------------------
+debug: True            # disable when generating a DAG visualization
 root: ''
-# Scratch for temp tractograms/intermediates. Override per-deployment with the
-# DIFFPARC_TMPDIR env var (see Snakefile). On HPC use a SHARED-filesystem path,
-# not node-local $SLURM_TMPDIR.
-tmp_dir: '/tmp'
-
-# boilerplate above
-
 derivatives: False
+tmp_dir: '/tmp'        # scratch for temp tractograms; override with $DIFFPARC_TMPDIR
 
-#mappings from analysis_level to set of target rules or files
 analysis_levels: &analysis_levels
  - participant
  - group
- 
-eddy_no_s2v: False
-###eddy_no_quad: False
-###no_bedpost: False
 
 targets_by_analysis_level:
   participant:
-    - ''  # if '', then the first rule is run
+    - ''               # '' => run the first rule
   group:
-    - 'all_legacy_csv'
-    
+    - 'all_legacy_csv' # FIXME: rule removed with tables.smk (see summary)
+
 pybids_inputs:
   dwi:
     filters:
@@ -58,7 +48,7 @@ pybids_inputs:
 
    
 
-#these are the command-line parameters
+
 parse_args:
 
   bids_dir:
@@ -91,7 +81,6 @@ parse_args:
           participants can be specified with a space separated list.
     nargs: '+'
 
-
   --in_prepdwi_dir:
     help: 'Skip dwi pre-processing and use preprocessing dwi, brainmask, and bedpost, from prepdwi instead. Specify the prepdwi directory that contains the work and prepdwi sub-directories. (default: %(default)s)'
     default: False
@@ -101,36 +90,6 @@ parse_args:
     help: 'Skip dwi pre-processing and use preprocessing dwi, brainmask, and bedpost, from snakedwi instead. Specify the snakedwi directory that contains the sub-* directories. (default: %(default)s)'
     default: False
     type: Path
-
-
-
- ### --use_eddy:
- ###   help: 'Enable eddy  (default: %(default)s)'
- ###   action: 'store_true'
- ###   default: False
-
-
- ### --use_topup:
- ###   help: 'Enable topup  (default: %(default)s)'
- ###   action: 'store_true'
-  ###  default: False
-
-###  --no_bedpost:
- ###   help: 'Disable bedpost  (default: %(default)s)'
- ###   action: 'store_true'
-  ###  default: False
-
-   
-###  --eddy_no_s2v:
- ###   help: 'Disables slice-to-volume in eddy. This option must be used
-      ###    if your dwi json does not include SliceTiming (default: %(default)s)'
- ###   action: 'store_true'
-  ###  default: False
-
-###  --eddy_no_quad:
-   ### help: 'Disables eddy_quad QC report (default: %(default)s)'
-  ###  action: 'store_true'
-  ###  default: False
 
   --masking_method:
     help: 'Brain masking method to use (default: %(default)s)'
@@ -144,97 +103,17 @@ parse_args:
     help: 'BET fractional intensity threshold for b0 masking (default: %(default)s)'
     default: 0.5
 
-###  --slspec_txt:
-###    help: 'Path to custom slspec txt file for use with eddy. Must use this if SliceTiming does not exist in the JSON (default: %(default)s)'
- ###   default: False
- ###   type: Path
-
-
-###  --use_gpu_eddy_container:
-   ### help: 'Use GPU-based eddy container'
-   ### action: 'store_true'
-   ### default: False
-
-
-###  --use_gpu_bedpost_container:
-###    help: 'Use GPU-based bedpost container'
-###    action: 'store_true'
-###    default: False
-
-###  --fod_algorithm:
-###    help: 'Mrtrix FOD algorithm to use (default: %(default)s)'
-###    nargs: '?'
-###    choices: 
-###      - 'csd'
- ###     - 'msmt_csd'
-###    default: 'msmt_csd'
-
-  --stat_along_tcks:
-    help: 'Statistic to use aggregating DTI metrics along each streamline (default: %(default)s)'
-    nargs: '?'
-    choices:
-      - 'mean'
-      - 'median'
-      - 'min'
-      - 'max'
-    default: 'mean'
-
-  --stat_across_tcks:
-    help: 'Statistic to use aggregating DTI metrics across streamlines at a vertex (default: %(default)s)'
-    nargs: '?'
-    choices:
-      - 'mean'
-      - 'median'
-      - 'min'
-      - 'max'
-    default: 'mean'
-
-###  --show_parallel_eta:
-###    help: 'Show progress and eta for rules using GNU parallel (warning: using this option in a non-interactive session will generate very large log files) (default: %(default)s)'
-###    action: 'store_true'
-###    default: False
-
-### --anat_only:
- ###   help: 'Run variant of the workflow that only relies on anatomical (T1w) data. This will automatically set the --use_template_parcellation flag, and does not produce volumetric parcellations, or any connectivity or DTI metric features. Note: if you want to use DTI metrics but avoid subject-specific connectivity parcellation, use the --use_template_parcellation option instead. (default: %(default)s)'
-###    action: 'store_true'
-###    default: False
-
-
- ### --use_template_parcellation: 
- ###   help: 'Uses a pre-computed parcellation for surface-based connectivity parcellation. Note: this will still make use of DTI metrics sampled with the parcellation, use the --anat_only` option instead to completely disable the use of dwi data. (default: %(default)s)'
- ###   action: 'store_true'
-  ###  default: False
-
-###  --use_vbm:
-###    help: 'Enable output of voxel-based morphometry and voxel-based DTI metric maps. (default: %(default)s)'
-###    action: 'store_true'
-###    default: False
-
-###  --no_surf:
-###    help: 'Disable surface-based workflow. (default: %(default)s'
-###    action: 'store_true'
-###    default: False
-
   --no_vol:
     help: 'Disable volume-based workflow. (default: %(default)s'
     action: 'store_true'
     default: False
 
-#---- to update below this
-
+# ---- Execution environment ---------------------------------------------------
 singularity:
- # Deployment-specific path. Override per-machine with the DIFFPARC_CONTAINER env
- # var (see Snakefile) instead of editing this tracked default, e.g. on Compute
- # Canada: export DIFFPARC_CONTAINER=$SCRATCH/containers/diffparc-deps_with_fsl.sif
- #diffparc: 'docker://khanlab/diffparc-deps:v0.1.0-fix'
- #diffparc: '/scratch/Tools/container_apps/diffparc-deps_with_fsl.sif'
+  # override per-machine with $DIFFPARC_CONTAINER
   diffparc: "/scratch/Tools/diffparc-surf/diffparc/resources/apptainer/diffparc-deps_with_fsl.sif"
 
-# Options for resampling dwi in T1w space
-#  1. can resample as T1w resolution
-#  2. can resample as original dwi resolution 
-#  3. can resample as specified resolution
-
+# ---- DWI import & preprocessing ----------------------------------------------
 resample_dwi:
   # 'custom' at 1.25mm: DWI->T1w resample lands directly on the final 1.25mm
   # grid (single resample, cubic B-spline) in reg_dwi_to_t1.smk. dwi_upsample
@@ -248,71 +127,19 @@ resample_dwi:
     - 1.25
 
 
-# DWI signal bias correction -- OFF by default in DiffParcSurf.
-# This pipeline is normally driven by SnakeDWI (in_snakedwi_dir), which already
-# does denoise/degibbs/topup+eddy/gradcorrect/registration AND bias correction
-# natively before its DWI->T1w resample. DiffParcSurf must NOT redo it.
-#   * Import mode (in_snakedwi_dir/in_prepdwi_dir set): this flag has NO effect
-#     anyway -- DiffParcSurf never bias-corrects imported data in any code path.
-#   * Standalone mode (no SnakeDWI): False => DiffParcSurf's own native
-#     bias-correction step (rule dwibiascorrect_native) is skipped and its
-#     registration/resample + native DTI fit run on the raw preproc DWI.
-# Set to True only if you intentionally run DiffParcSurf standalone AND want it
-# to bias-correct itself.
+# native bias-correction; keep False when driven by snakedwi (it already does it)
 dwi_biascorrect: False
+masking_method: b0_BET
+b0_bet_frac: 0.5
+eddy_no_s2v: False
 
-
-#masking options, provides customization at a per subject level..
-masking:
-  default_method: 'bet_from-b0_frac-1' #b0SyN_from-MNI152NLin2009cSym' #default method to use for brainmasking
-  methods: # list of methods (for QC report)
-    - 'bet_from-b0'
-    - 'bet_from-b0_frac-4'
-    - 'b0SyN_from-MNI152NLin2009cSym'
-  import_path: #only required if the import_mask - not implemented yet..
-    - '/path/to/mask_to_import/sub-{subject}_mask.nii.gz'
-  custom: #use this to set a custom method for a particular subject
-    #'0015': 'bet_from-b0_frac-4'
-    '0015': 'b0SyN_from-MNI152NLin2009cSym'
-
+# ---- Registration template ---------------------------------------------------
 template: MNI152NLin2009cAsym
-
-
 template_t1w: resources/tpl-MNI152NLin2009cAsym/tpl-MNI152NLin2009cAsym_res-01_T1w.nii.gz
-template_mask: resources/tpl-MNI152NLin2009cAsym/tpl-MNI152NLin2009cAsym_res-01_desc-brain_mask.nii.gz 
-
-        
-#avg bshell images are used for registration for brainmasking dwi
+template_mask: resources/tpl-MNI152NLin2009cAsym/tpl-MNI152NLin2009cAsym_res-01_desc-brain_mask.nii.gz
 template_b0: resources/tpl-MNI152NLin2009cAsym/tpl-MNI152NLin2009cAsym_res-dwi_desc-fromhcp_b0.nii.gz
 
-###template_atlas_dseg_nii: resources/tpl-MNI152NLin2009cAsym/tpl-MNI152NLin2009cAsym_res-1_atlas-{atlas}_dseg.nii.gz
-###template_atlas_dseg_tsv: resources/tpl-MNI152NLin2009cAsym/tpl-MNI152NLin2009cAsym_atlas-{atlas}_dseg.tsv
-
-template_tissue_probseg: resources/tpl-MNI152NLin2009cAsym/tpl-MNI152NLin2009cAsym_res-01_label-{tissue}_probseg.nii.gz
-
-#number of times to dilate  (each time 3x3x3 mode dilation)
-n_atlas_dilate: 3
-n_init_mask_dilate: 1 
-
-default_k_tissue_classes: 4 #use higher than 3 to capture contrast-enhanced regions too
-
-#--- NOT SURE WHAT TO DO WITH THIS:
-#use this to specify custom values for subjects, e.g. here sub-P001 will have k=4 tissue classes for Atropos initialization
-subject_k_tissue_classes:
-    P001: 4
-
-
-
-
-tissue_labels:
-  - GM
-  - WM
-  - CSF
-
-###atlases:
-  ###- CerebrA
-
-
+# ---- ANTs registration -------------------------------------------------------
 ants:
   dim: 3
   random_seed: 42 #requires ants version at least 2.3.1 (includes --random-seed option)
@@ -330,29 +157,81 @@ ants:
   shape_update:
   gradient_step: 0.25
 
-#we convert flags and opts automatically 
-#so feel free to prescribe options that are not included here 
-#as long as they are passed to eddy using --name_of_flag or --name_of_opts=value
-###eddy:
-#  flags:
-#    verbose: True
- #   repol: True
-  #  cnr_maps: True
-   # residuals: True
-#    data_is_shelled: True
- # with_s2v:
-  #  mporder: 6
-   # s2v_niter: 5
-    #s2v_lambda: 1
-#    s2v_interp: trilinear
- #   ol_type: 'both'  #can be sw, gw, or both (use sw if no multi-band)
-  #without_s2v:
-   # ol_type: 'sw'  #can be sw, gw, or both (use sw if no multi-band)
 
+# ---- Seeds & targets ---------------------------------------------------------
+select_seeds:
+  - vtasncpbp
 
-#Diffparc Section
+seeds:
+  vtasnc:
+    template_probseg: resources/tpl-MNI152NLin2009cAsym/CIT168_prob/vtasnc_hemi-{hemi}_probseg.nii.gz
+    probseg_threshold: 0.05
+    probseg_resample: '200%'
+    use_synthseg: False
+    targets: 
+    #  - Schaefer100TianS3
+    #  - Schaefer200TianS3
+       - Yeo7TianS3
+    #  - Yeo17TianS3
+       
+    fwhm_conn: 2mm
+    streamline_threshold_percent: 4
+    seeds_per_vertex:
+      - 250
+    normalize_percentile: 95 #normalize connectivity to each target before maxprob
+    
+  # --- experimental mask_sweep split midbrain seeds (additive) --------------
+  # snc       = SNc only             (nigrostriatal)
+  # vtapbp    = VTA + PBP merged     (mesolimbic A10; SNr excluded)
+  # vtasncpbp = SNc + VTA + PBP      (full DA midbrain; SNr excluded)
+  # The template_probseg files are generated once by workflow/scripts/generate_probsegs.py
+  snc:
+    template_probseg: resources/tpl-MNI152NLin2009cAsym/CIT168_prob/snc_hemi-{hemi}_probseg.nii.gz
+    probseg_threshold: 0.05
+    probseg_resample: '200%'
+    use_synthseg: False
+    targets:
+       - Yeo7TianS3
+    fwhm_conn: 2mm
+    streamline_threshold_percent: 4
+    seeds_per_vertex:
+      - 250
+    normalize_percentile: 95
+  vtapbp:
+    template_probseg: resources/tpl-MNI152NLin2009cAsym/CIT168_prob/vtapbp_hemi-{hemi}_probseg.nii.gz
+    probseg_threshold: 0.05
+    probseg_resample: '200%'
+    use_synthseg: False
+    targets:
+       - Yeo7TianS3
+    fwhm_conn: 2mm
+    streamline_threshold_percent: 4
+    seeds_per_vertex:
+      - 250
+    normalize_percentile: 95
+  vtasncpbp:
+    template_probseg: resources/tpl-MNI152NLin2009cAsym/CIT168_prob/vtasncpbp_hemi-{hemi}_probseg.nii.gz
+    probseg_threshold: 0.05
+    probseg_resample: '200%'
+    use_synthseg: False
+    targets:
+       - Yeo7TianS3
+    fwhm_conn: 2mm
+    streamline_threshold_percent: 4
+    seeds_per_vertex:
+      - 250
+    normalize_percentile: 95
+    
 
-template_use_dseg: False
+synthseg_labels:       # only used when a seed sets use_synthseg: True
+  vtasnc:
+    L: "16"
+    R: "16"
+
+hemispheres:
+  - 'L'
+  - 'R'
+
 targets:
   harvardoxford7:
     template_dseg: resources/tpl-MNI152NLin2009cAsym/HarvardOxford/CorticalTargets.harvardoxford7.nii.gz
@@ -768,363 +647,64 @@ targets:
     label_list_txt: resources/tpl-MNI152NLin2009cAsym/Yeo_Tian/label_list_Yeo17_TianS3.txt
 
 
-select_seeds:
-###  - striatum
-#  - vtasnc
-  - vtasncpbp
-
-seeds:
-###  striatum:
-###    template_probseg: resources/tpl-MNI152NLin2009cAsym/CIT168_prob/striatum_hemi-{hemi}_probseg.nii.gz
-###    probseg_threshold: 0.5
-###    probseg_resample: '100%'
-###    surface_decimate_percent: 25
-###    fwhm_conn: 2mm
-###    use_synthseg: False 
-###    targets:
-###      - harvardoxford6
- ###     - harvardoxford7
- ###   streamline_threshold_percent: 10
- ###   seeds_per_vertex:
-  ###    - 250
- ###   seeds_per_voxel:
- ###     - 250
-###    normalize_percentile: 95
-  vtasnc:
-    template_probseg: resources/tpl-MNI152NLin2009cAsym/CIT168_prob/vtasnc_hemi-{hemi}_probseg.nii.gz
-    probseg_threshold: 0.05
-    probseg_resample: '200%'
-###    surface_decimate_percent: 0
-    use_synthseg: False
-    targets: 
-    #  - Schaefer100TianS3
-    #  - Schaefer200TianS3
-       - Yeo7TianS3
-    #  - Yeo17TianS3
-       
-    fwhm_conn: 2mm
-    streamline_threshold_percent: 4
-    seeds_per_vertex:
-      - 250
-###    seeds_per_voxel:
-###      - 5000
-    normalize_percentile: 95 #normalize connectivity to each target before maxprob
-    
-  # --- experimental mask_sweep split midbrain seeds (additive) --------------
-  # snc       = SNc only             (nigrostriatal)
-  # vtapbp    = VTA + PBP merged     (mesolimbic A10; SNr excluded)
-  # vtasncpbp = SNc + VTA + PBP      (full DA midbrain; SNr excluded)
-  # The template_probseg files are generated once by workflow/scripts/generate_probsegs.py
-  snc:
-    template_probseg: resources/tpl-MNI152NLin2009cAsym/CIT168_prob/snc_hemi-{hemi}_probseg.nii.gz
-    probseg_threshold: 0.05
-    probseg_resample: '200%'
-    use_synthseg: False
-    targets:
-       - Yeo7TianS3
-    fwhm_conn: 2mm
-    streamline_threshold_percent: 4
-    seeds_per_vertex:
-      - 250
-    normalize_percentile: 95
-  vtapbp:
-    template_probseg: resources/tpl-MNI152NLin2009cAsym/CIT168_prob/vtapbp_hemi-{hemi}_probseg.nii.gz
-    probseg_threshold: 0.05
-    probseg_resample: '200%'
-    use_synthseg: False
-    targets:
-       - Yeo7TianS3
-    fwhm_conn: 2mm
-    streamline_threshold_percent: 4
-    seeds_per_vertex:
-      - 250
-    normalize_percentile: 95
-  vtasncpbp:
-    template_probseg: resources/tpl-MNI152NLin2009cAsym/CIT168_prob/vtasncpbp_hemi-{hemi}_probseg.nii.gz
-    probseg_threshold: 0.05
-    probseg_resample: '200%'
-    use_synthseg: False
-    targets:
-       - Yeo7TianS3
-    fwhm_conn: 2mm
-    streamline_threshold_percent: 4
-    seeds_per_vertex:
-      - 250
-    normalize_percentile: 95
-    
-aux_dseg:
-  synthseg:
-    label_tsv: 'resources/synthseg_simple_labels.tsv'
-  synthsegcortparc:
-    label_tsv: 'resources/synthseg_cortparc_labels.tsv'
-###vbm:
-###  tissue_lut: 
-###    CSF: 1
-###    GM: 2
- ###   WM: 3
- ### dti_metrics:
- ###   - FA
-  ###  - MD
-###  fwhm:
- ###   - 2mm
- ###   - 6mm
-  ###  - 10mm
-  seg_method: 'synthseg'
-
-
-synthseg_labels:
-###  striatum:
-###    L:
-###      - 11
- ###     - 12
- ###     - 26
- ###   R:
- ###     - 50
- ###     - 51
-  ###    - 58
-  vtasnc:
-    L: "16"
-    R: "16"
-
-hemispheres:
-  - 'L'
-  - 'R'
-
-###hemi_to_structure:
-###  L: CORTEX_LEFT
-###  R: CORTEX_RIGHT
-###  LR: CORTEX
-
-volume_metrics:
-  - vol
-  - volmni
-  
-### surface_metrics:
-###  - inout
-###  - surfarea
-###  - indepconn
-###  - bundleFA
-###  - bundleMD
-###  - surfFA
-###  - surfMD
-###  - surfarearatio
- ### - surfvol
-###  - surfvolmni
- ### - bundleznormFA
- ### - bundleznormMD
- ### - surfznormFA
-###  - surfznormMD
-###  - bundlepnormFA
-###  - bundlepnormMD
-###  - surfpnormFA
- ### - surfpnormMD
-
-
-###aux_metrics:
-###  - vol
-###  - volmni
-###  - FA
- ### - MD
-###  - znormFA
- ### - znormMD
-###  - pnormFA
- ### - pnormMD
-
-#tractography parameters
+# ---- Tractography ------------------------------------------------------------
 fod_algorithm: msmt_csd
-
-#dwi_upsample: 1.25mm now happens once, in SnakeDWI's/DiffParcSurf's own
-# reg_dwi_to_t1.smk DWI->T1w resample (resample_dwi.resample_scheme: custom),
-# via cubic B-spline. Disabled here so the FOD branch does not upsample AGAIN
-# via a second mrgrid regrid on top of an already-1.25mm image.
-dwi_upsample: false
-dwi_upsample_vox: 1.25   # mm, isotropic (kept for reference / rule params)
-
-enable_global_conn: true
-
-resample_seed_res: '1x1x1mm' #for resampling seeds/targets
-
-#voxel-based-seeding tractography (can move these to structure-specific config later..)
-
-#surfdisp_normalization_fwhm_mm: 8
-
-#for test data
-###participant_label: 
-###exclude_participant_label:
-masking_method: b0_BET
-b0_bet_frac: 0.5
-#slspec_txt: False
-#eddy_no_s2v: True
-
-#use_eddy: False
-#use_topup: False
-#skip_dwi_preproc: False
-
-
-stat_along_tcks: 'mean'  
-stat_across_tcks: 'mean'
-
-###in_prepdwi_dir: False
-###in_snakedwi_dir: /scratch/Projects/SnakeMake_Test_Space/test_snakedwi/snakedwi
-
-show_parallel_eta: False
-
-nat_only: False
-use_template_parcellation: False
-###use_vbm: False
-
+dwi_upsample: false    # resample already lands on 1.25mm; no second regrid
+dwi_upsample_vox: 1.25
 mrtrix:
   step: 0.625
   angle: 37
   minlength: 10
   maxlength: 250
   cutoff: 0.06
-  # tck2connectome streamline->node assignment for voxelwise connectivity.
-  # Endpoint assignment is effectively ASYMMETRIC:
-  #   * Seed side  -> end-voxel (strict). Radial search tests the endpoint's own
-  #     voxel first, and every seed endpoint sits inside a labelled seed voxel,
-  #     so it is always assigned to its own voxel regardless of this radius.
-  #   * Target side -> radial search out to target_search_radius (mm), since
-  #     distal endpoints stop in unlabelled white matter and must reach a parcel.
-  # 4-6 mm is typical for cortical/subcortical target matching.
-  target_search_radius: 4
-
-mrtrix_rng_seed: 7 #random number generator seed for reproducible results
-  
+  target_search_radius: 4   # mm; radial search to assign target-side endpoints to a parcel
+mrtrix_rng_seed: 7
 wb_chunk_count: 2
-wb_chunk_streamlines: 50000000   # 4 x 25M = 100M total ; fills the 64-core node
-
+wb_chunk_streamlines: 50000000
 roi_enrichment:
   enabled: True
   seeds_per_voxel: 3000
+enable_global_conn: true
+resample_seed_res: '1x1x1mm'
+show_parallel_eta: False
+use_template_parcellation: False
 
+# ---- Per-rule resources (only rules that scale with tractography params) ------
 resources:
-  # ------------------------------------------------------------------
-  # ONLY per-rule resources that SCALE with tractography parameters live here
-  # (streamline count, chunk size, seeds-per-voxel, enrichment level). Tune these
-  # when you change wb_chunk_streamlines, roi_enrichment.seeds_per_voxel, or
-  # enrichment_sweep.levels. Image-driven / fixed-cost rules (dwi2fod, act_5ttgen,
-  # tensor metrics, tractogram merges, QC, microstructure, mask-sweep per-job) are
-  # hard-coded as rule defaults in workflow/rules/*.smk and intentionally NOT here.
-  # ------------------------------------------------------------------
-
-  # Whole-brain tractography. mem ~flat (~2 GB); threads fill the node; time tracks
-  # wb_chunk_streamlines (~2 h per 25M-streamline chunk at 16 threads). 4x16=64 cores.
   wb_tckgen_chunk:
     threads: 16
     mem_mb: 4000
     time_min: 180
-
-  # Seed-region tractography. Scales with seeds_per_vertex.
   roi_tckgen:
     threads: 8
     mem_mb: 2000
     time_min: 90
-
-  # SIFT2 on the whole-brain tractogram. mem ~= O(streamlines) (~40 GB @ 100M).
-  # threads:12 lets all 5 SIFT2 jobs (1 main + 4 enrichment) co-run (5x12=60<=64).
   sift2:
     threads: 12
     mem_mb: 48000
     time_min: 120
-
-  # Endpoint filtering of the final tractogram. mem ~= O(streamlines) (~5.5 GB @ 100M).
   filter_tractogram:
     threads: 2
     mem_mb: 8000
     time_min: 60
 
-  # --- enrichment sweep (scales with enrichment_sweep.levels & seeds_per_voxel) ---
-  enrich_roi_tckgen_max:
-    threads: 16
-    mem_mb: 2000
-    time_min: 45
-
-  enrich_roi_subsample:        # memory-bound, single-threaded; mem ~= O(streamlines)
-    threads: 2
-    mem_mb: 28000
-    time_min: 30
-
-  enrich_sift2:                # mem ~= O(streamlines) (~38 GB); threads:12 for 5-wide concurrency
-    threads: 12
-    mem_mb: 46000
-    time_min: 120
-
-  enrich_combine:
-    threads: 2
-    mem_mb: 3000
-    time_min: 90
-
-  enrich_filter_tractogram:
-    threads: 2
-    mem_mb: 8000
-    time_min: 60
-
-  enrich_filter_tractogram_propagated:
-    threads: 2
-    mem_mb: 8000
-    time_min: 60
-
-  enrich_propagate_weights:    # one weight per streamline -> mem ~= O(streamlines)
-    threads: 1
-    mem_mb: 10000
-    time_min: 15
-
-
-# -----------------------------------------------------------------------------
-# Connectivity matrix variants (rules/connectivity.smk + rules/mask_sweep.smk)
-# Configurable, additive seed-voxel x atlas-target connectivity matrices. Each
-# variant applies a different tck2connectome edge-scaling recipe (+/- SIFT2-mu
-# scaling); the exact processing is spelled out in the filename `meas-` tag so it
-# is unambiguous. The SAME naming is used for the main tracts/ matrices and the
-# mask-sweep matrices.
-#
-#   config key                              filename tag              tck2connectome                  SIFT2 mu
-#   raw                                     (no tag; primary csv)     (none)                          no   [baseline, MAIN deliverable]
-#   mu_scaled                               meas-muscaled             (none)                          yes  [baseline]
-#   volume_bias_corrected                   meas-invnodevol           -scale_invnodevol               no
-#   length_bias_corrected                   meas-length               -scale_length                   no
-#   volume_length_bias_corrected            meas-invnodevollength     -scale_invnodevol -scale_length no
-#   volume_length_bias_corrected_mu_scaled  meas-invnodevollengthmu   -scale_invnodevol -scale_length yes
-#
-# Length bias correction uses -scale_length (weight each streamline's contribution
-# BY its length), UP-weighting longer streamlines to counter their under-representation
-# in probabilistic tracking (NOT -scale_invlength, which would down-weight them).
-#
-# raw + mu_scaled are the pipeline's BASELINE outputs: always produced by the core
-# voxelwise_connectivity / sweep_voxelwise_connectivity rules. RAW is the MAIN
-# deliverable (the untagged connectivity_matrix.csv that downstream consumes);
-# mu_scaled is preserved alongside as the meas-muscaled block. Their keys below are
-# informational (they document the baseline) and do not gate production. The four
-# CORRECTED variants are the switched ones: each is built by the additive
-# connectivity_variant / sweep_connectivity_variant rules only when its key is true.
+# ---- Connectivity outputs ----------------------------------------------------
+# Additive tck2connectome variants, tagged in the filename `meas-`. raw + mu_scaled
+# are always produced; the four *_bias_corrected are gated by the flags below.
 connectivity_variants:
-  raw: true                                     # baseline (always produced)
-  mu_scaled: true                               # baseline (always produced)
+  raw: true
+  mu_scaled: true
   volume_bias_corrected: true
   length_bias_corrected: true
   volume_length_bias_corrected: true
   volume_length_bias_corrected_mu_scaled: true
 
-# -----------------------------------------------------------------------------
-# Tractography visual QC (rules/connectivity.smk)
-# For the whole-brain and final seed-filtered tractograms, emit into /qc:
-#   TDI, endpoint map, track-weighted DEC, FOD-based DEC (anatomical background),
-#   a random 200k-streamline subset (.tck) for mrview, and a length histogram.
-# On by default; the whole-brain pass runs tckmap x3 over the full tractogram, so
-# turn this off to skip it.
-# -----------------------------------------------------------------------------
+# Tractography visual QC (TDI / endpoints / DEC / subset.tck / length histogram)
 tractography_qc: True
-tractography_qc_nsubsample: 200000   # streamlines kept in the visual-inspection subset
-tractography_qc_seed: 7             # RNG seed for that random subset (reproducible)
+tractography_qc_nsubsample: 200000
+tractography_qc_seed: 7
 
-# -----------------------------------------------------------------------------
-# Optional microstructure-weighted connectomes (rules/microstructure_connectomes.smk)
-# For the whole-brain (final) tractogram + SIFT2 weights: sample FA/MD/RD along
-# streamlines (tcksample -stat_tck mean) and build SIFT2-weighted, mean-edge atlas
-# connectomes (tck2connectome -scale_file -stat_edge mean). MAIN connectivity only;
-# additive. RD map + per-streamline samples are preserved. Off by default.
-# -----------------------------------------------------------------------------
+# FA/MD/RD-weighted atlas connectomes from the final tractogram + SIFT2 weights
 microstructure_connectomes: True
 microstructure_connectomes_targets:
   - Yeo7TianS3
