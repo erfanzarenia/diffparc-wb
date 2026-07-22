@@ -14,7 +14,6 @@ config.setdefault("use_eddy", False)
 config.setdefault("use_topup", False)
 config.setdefault("eddy_no_s2v", False)
 config.setdefault("eddy_no_quad", False)
-config.setdefault("no_bedpost", False)
 config.setdefault("slspec_txt", False)
 config.setdefault("masking_method", "b0_BET")
 config.setdefault("b0_bet_frac", 0.5)
@@ -28,13 +27,6 @@ config.setdefault("dwi_biascorrect", False)
 # Absent connectivity_variants section => only the baseline raw + mu-scaled
 # matrices (current behaviour); the four corrected variants stay OFF.
 config.setdefault("connectivity_variants", {})
-
-config.setdefault("vbm", {
-    "tissue_lut": {"CSF": 1, "GM": 2, "WM": 3},
-    "dti_metrics": ["FA", "MD"],
-    "fwhm": ["2mm"],
-    "seg_method": "synthseg",
-})
 
 config.setdefault("eddy", {
     "flags": {
@@ -333,8 +325,6 @@ include: "rules/preproc_t1.smk"
 include: "rules/reg_t1_to_template.smk"
 include: "rules/synthseg.smk"
 include: "rules/prop_seeds_targets.smk"
-include: "rules/postproc_vol.smk"
-include: "rules/normalize.smk"
 
 if not config["anat_only"]:
     include: "rules/preproc_dwi.smk"
@@ -343,7 +333,6 @@ if not config["anat_only"]:
     include: "rules/masking_b0_to_template.smk"
     include: "rules/reg_dwi_to_t1.smk"
     include: "rules/mrtrix.smk"
-    include: "rules/bedpost.smk"
     include: "rules/wb_prep.smk"
     include: "rules/mrtrix_wb.smk"
     include: "rules/mrtrix_roi_enrichment.smk"
