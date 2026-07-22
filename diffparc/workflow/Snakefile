@@ -202,44 +202,6 @@ def conn_variant_meas_enabled():
 # -----------------------------
 # Final target helpers
 # -----------------------------
-def get_subj_nlincrop_conn():
-    files = []
-
-    if config.get("no_vol", False) or config.get("disable_voxelwise_conn", False):
-        return []
-
-    for seed in config["select_seeds"]:
-        files.extend(
-            expand(
-                expand(
-                    bids(
-                        root=root,
-                        datatype="tracts",
-                        hemi="{hemi}",
-                        warp="nlincrop",
-                        space=config["template"],
-                        desc="{targets}",
-                        label="{seed}",
-                        seedspervoxel="{seedspervoxel}",
-                        method="{method}",
-                        suffix="conn.nii.gz",
-                        **subj_wildcards,
-                    ),
-                    seed=seed,
-                    targets=config["seeds"][seed]["targets"],
-                    seedspervoxel=config["seeds"][seed]["seeds_per_voxel"],
-                    method=config["methods"],
-                    hemi=config["hemispheres"],
-                    allow_missing=True,
-                ),
-                zip,
-                **subj_zip_list,
-            )
-        )
-
-    return files
-
-
 def get_subj_global_conn_sift2():
     files = []
 
@@ -519,16 +481,6 @@ def get_microstructure_connectome_outputs():
         subject=subjects, targets=targets, metric=metrics,
     )
 
-# -----------------------------
-# Main target for your current use case
-# -----------------------------
-rule all_nlincrop_conn:
-    input:
-        get_subj_nlincrop_conn(),
-        get_subj_global_conn_sift2(),
-        get_mask_sweep_outputs()
-
-
 rule all:
     input:
         get_subj_global_conn_sift2(),
@@ -569,8 +521,3 @@ if not config["anat_only"]:
     include: "rules/microstructure_connectomes.smk"
     include: "rules/mask_sweep.smk"
     include: "rules/enrichment_sweep.smk"
-
-    if not config.get("disable_voxelwise_conn", False):
-        include: "rules/mrtrix_vol.smk"
-        include: "rules/probtrack_vol.smk"
-        include: "rules/parcbundles.smk"
