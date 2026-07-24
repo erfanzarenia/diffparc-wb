@@ -1,32 +1,28 @@
+# mrtrix.smk -- MRtrix DWI modelling: DWI->MIF, optional upsampling, MSMT-CSD
+# response/FOD estimation (+ mtnormalise), a single-shell CSD fallback, and
+# diffusion-tensor fitting for FA/MD. Feeds the tractography/connectome rules.
+
+
 def res(rule, key, default):
     return config.get("resources", {}).get(rule, {}).get(key, default)
 
 
-# Self-contained (non-import) pipeline: bias correction (if enabled) happens
-# natively, before DWI->T1w registration/resample (rule dwibiascorrect_native
-# in preproc_dwi.smk; see reg_dwi_to_t1.smk's get_native_dwi_desc()), so a
-# single bias-corrected DWI feeds both the native DTI fit below and, via
-# registration/resample, the FOD/tractography branch.
-#
-# Import mode (in_snakedwi_dir / in_prepdwi_dir): the imported DWI already
-# arrived pre-registered/pre-resampled from an external pipeline that does
-# not itself bias-correct, so bias correction (if enabled) still has to
-# happen here instead, after resampling -- see rule dwibiascorrect below.
+# Diffusion-tensor (DTI) source depends on the pipeline mode:
+#  * Self-contained (non-import): fit the tensor in NATIVE DWI space -- on the
+#    bias-corrected DWI (dwibiascorrect_native, preproc_dwi.smk) when enabled --
+#    then resample the scalar FA/MD to T1w. The native-fit rules below are gated
+#    on this mode via _native_dti.
+#  * Import (in_snakedwi_dir / in_prepdwi_dir): the DWI is imported already fully
+#    preprocessed by the external pipeline, so the T1w-space tensor fit
+#    (dwi_to_tensor -> tensor_to_metrics) is used as-is.
 _native_dti = (not config.get("in_snakedwi_dir")) and (
     not config.get("in_prepdwi_dir")
 )
 
 
 def get_dwi_for_csd(wc):
-    # Bias correction (if enabled, config["dwi_biascorrect"]) always happens
-    # natively, before DWI->T1w registration/resampling -- never here, after.
-    # Self-contained pipeline: rule dwibiascorrect_native in preproc_dwi.smk.
-    # Import mode: SnakeDWI's own equivalent, upstream, before ITS registration
-    # (rule dwibiascorrect_native in snakedwi's reg_dwi_to_t1.smk) -- SnakeDWI's
-    # dwi_biascorrect setting is authoritative for imported data; this
-    # pipeline's own dwi_biascorrect only controls its standalone preprocessing.
-    # Either way, nii2mif's output is already correctly processed by the time
-    # it gets here.
+    # nii2mif's output: already fully preprocessed (bias-corrected upstream when
+    # enabled -- see _native_dti; import mode brings it in already corrected).
     return rules.nii2mif.output.dwi
 
 
@@ -183,6 +179,7 @@ def get_mask_for_fod(wildcards):
     return rules.nii2mif.output.mask
 
 
+# Convert a dseg NIfTI to MRtrix .mif.
 rule dseg_nii2mif:
     input:
         "{file}_dseg.nii.gz",
@@ -196,6 +193,9 @@ rule dseg_nii2mif:
         "mrconvert {input} {output} -nthreads {threads}"
 
 
+# -----------------------------
+# MSMT-CSD response + FOD (primary FOD path; config fod_algorithm: msmt_csd)
+# -----------------------------
 rule dwi2response_msmt:
     # Dhollander, T.; Mito, R.; Raffelt, D. & Connelly, A. Improved white matter response function estimation for 3-tissue constrained spherical deconvolution. Proc Intl Soc Mag Reson Med, 2019, 555
     input:
@@ -334,6 +334,9 @@ rule mtnormalise:
         "mtnormalise -nthreads {threads} -mask {input.mask} {input.wm_fod} {output.wm_fod} {input.gm_fod} {output.gm_fod} {input.csf_fod} {output.csf_fod}"
 
 
+# -----------------------------
+# Single-shell CSD fallback (config fod_algorithm: csd)
+# -----------------------------
 rule dwi2response_csd:
     input:
         dwi=get_dwi_for_csd,
@@ -383,6 +386,11 @@ rule dwi2fod_csd:
         "dwi2fod -nthreads {threads} -mask {input.mask} csd {input.dwi} {input.wm_rf} {output.wm_fod}  "
 
 
+# -----------------------------
+# Diffusion tensor -> FA/MD (T1w space). Masked dwi_to_tensor supersedes the
+# unmasked dwi2tensor (see ruleorder in microstructure_connectomes.smk); the
+# native-space fit below overrides FA/MD when _native_dti; tensor also feeds RD.
+# -----------------------------
 rule dwi2tensor:
     input:
         dwi=get_dwi_for_csd,
@@ -455,26 +463,16 @@ rule tensor_to_metrics:
 
 
 # ---------------------------------------------------------------------------
-# Native-space DTI (Option 1)
+# Native-space DTI (self-contained pipeline only; gated by _native_dti above).
 #
-# Fit the diffusion tensor in NATIVE DWI space (on the native DWI -- bias-
-# corrected upstream in preproc_dwi.smk when dwi_biascorrect is enabled;
-# see _native_dti above), derive the rotation-invariant scalars (FA, MD)
-# there, then resample ONLY those scalars into T1w space. This is the
-# fit-then-resample-scalar order: it avoids interpolating the 4D directional
-# signal before fitting, and because FA/MD are rotation invariant the scalar
-# resample needs no tensor reorientation.
+# Fit the tensor in NATIVE DWI space, derive the rotation-invariant scalars
+# (FA, MD) there, then resample ONLY those scalars to T1w. Fitting before
+# resampling avoids interpolating the 4D directional signal, and because FA/MD
+# are rotation invariant the scalar resample needs no tensor reorientation.
 #
-# Scoped to the self-contained (non-import) configuration, where the native
-# preproc DWI, the native brain mask and the dwi->T1w transform all exist
-# locally. In import mode (in_snakedwi_dir / in_prepdwi_dir) the native DWI is
-# not present, so the pre-existing T1w-fit path (dwi_to_tensor ->
-# tensor_to_metrics) is kept unchanged.
-#
-# The final FA.nii.gz / MD.nii.gz output paths are byte-for-byte identical to
-# the previous producer, so every downstream consumer is unaffected and the
-# FOD/tracking branch is untouched. A ruleorder makes the native-fit resample
-# authoritative for those paths when this branch is active.
+# Outputs reuse the FA.nii.gz / MD.nii.gz paths of the T1w-space fit
+# (tensor_to_metrics); the ruleorder below makes this native-fit resample
+# authoritative for them. Import mode keeps the T1w-space fit unchanged.
 # ---------------------------------------------------------------------------
 
 if _native_dti:
@@ -615,6 +613,7 @@ def get_fod_for_tracking(wildcards):
         )
 
 
+# Reslice a scalar metric (FA/MD) onto a dseg's voxel grid (reslice-identity).
 rule resample_metric_to_aux_dseg:
     input:
         dseg=bids(

@@ -6,38 +6,26 @@ configfile: "config/snakebids.yml"
 
 report: "../workflow/report/workflow.rst"
 
+# -----------------------------
+# Config defaults
+# -----------------------------
+# Workflow mode
 config.setdefault("anat_only", False)
 config.setdefault("no_vol", False)
-config.setdefault("use_template_parcellation", False)
 
+# DWI source: import (snakedwi/prepdwi) vs raw-DWI preprocessing below
+config.setdefault("in_prepdwi_dir", False)
+config.setdefault("in_snakedwi_dir", False)
+config.setdefault("dwi_biascorrect", False)   # native bias-correction; off when snakedwi drives it
+
+# Raw-DWI preprocessing (only used when not importing)
 config.setdefault("use_eddy", False)
 config.setdefault("use_topup", False)
 config.setdefault("eddy_no_s2v", False)
-config.setdefault("eddy_no_quad", False)
 config.setdefault("no_bedpost", False)
 config.setdefault("slspec_txt", False)
 config.setdefault("masking_method", "b0_BET")
 config.setdefault("b0_bet_frac", 0.5)
-config.setdefault("show_parallel_eta", False)
-config.setdefault("in_prepdwi_dir", False)
-config.setdefault("in_snakedwi_dir", False)
-# OFF by default: DiffParcSurf defers DWI bias correction to SnakeDWI (see
-# config/snakebids.yml dwi_biascorrect). Fallback here only applies if the key
-# is absent from the config entirely.
-config.setdefault("dwi_biascorrect", False)
-config.setdefault("mask_sweep", {})
-config["mask_sweep"].setdefault("enabled", False)
-# Absent connectivity_variants section => only the baseline raw + mu-scaled
-# matrices (current behaviour); the four corrected variants stay OFF.
-config.setdefault("connectivity_variants", {})
-
-config.setdefault("vbm", {
-    "tissue_lut": {"CSF": 1, "GM": 2, "WM": 3},
-    "dti_metrics": ["FA", "MD"],
-    "fwhm": ["2mm"],
-    "seg_method": "synthseg",
-})
-
 config.setdefault("eddy", {
     "flags": {
         "verbose": True,
@@ -58,18 +46,26 @@ config.setdefault("eddy", {
     },
 })
 
+# DTI-metric normalization (rules/normalize.smk)
+config.setdefault("vbm", {
+    "tissue_lut": {"CSF": 1, "GM": 2, "WM": 3},
+    "dti_metrics": ["FA", "MD"],
+    "fwhm": ["2mm"],
+    "seg_method": "synthseg",
+})
+
+# Outputs / experiments
+config.setdefault("connectivity_variants", {})   # absent => only baseline raw + mu-scaled
+config.setdefault("mask_sweep", {})
+config["mask_sweep"].setdefault("enabled", False)
+config.setdefault("show_parallel_eta", False)
+
 # -----------------------------
 # HPC / cluster portability
 # -----------------------------
-# The container (.sif) and scratch (tmp_dir) locations are deployment-specific
-# (the committed defaults point at one lab cluster). Allow both to be overridden
-# from the environment WITHOUT editing tracked config, falling back to the config
-# values when unset (so existing behaviour is unchanged). On Compute Canada:
-#   export DIFFPARC_CONTAINER=/path/to/diffparc-deps_with_fsl.sif
-#   export DIFFPARC_TMPDIR=$SCRATCH/diffparc_tmp   # MUST be on a shared filesystem,
-#                                                  # NOT node-local $SLURM_TMPDIR,
-#                                                  # because temp tractograms are
-#                                                  # tracked across grouped jobs.
+# Override container and scratch paths from the environment without editing tracked
+# config. DIFFPARC_TMPDIR must be a SHARED filesystem (not node-local $SLURM_TMPDIR),
+# since temp tractograms are tracked across grouped jobs.
 import os as _os
 
 if _os.environ.get("DIFFPARC_CONTAINER"):
@@ -83,7 +79,6 @@ if _os.environ.get("DIFFPARC_TMPDIR"):
 # Basic config normalization
 # -----------------------------
 if config.get("anat_only", False):
-    config["use_template_parcellation"] = True
     del config["pybids_inputs"]["dwi"]
 
 
@@ -158,22 +153,11 @@ else:
 # -----------------------------
 # Connectivity matrix variants (config: connectivity_variants)
 # -----------------------------
-# Each variant = a tck2connectome edge-scaling recipe (+/- SIFT2-mu scaling),
-# emitted as an explicitly-named matrix so the exact processing is obvious from
-# the filename `meas-` tag. This registry is defined here (before `rule all` and
-# before the rule includes) so it is shared verbatim by both the main tracts/
-# matrices (rules/connectivity.smk) and the mask-sweep matrices (rules/mask_sweep.smk),
-# guaranteeing the naming is MIRRORED EXACTLY between them.
-#
-# The two baseline variants are produced by the core voxelwise_connectivity /
-# sweep_voxelwise_connectivity rules: RAW is the main deliverable (untagged
-# connectivity_matrix.csv) and mu-scaled is preserved alongside as meas-muscaled.
-# Only the four "corrected" variants below get a dedicated rule.
-#
-# Length bias correction uses -scale_length (weights each streamline's contribution
-# BY its length), which UP-weights longer streamlines to counter their systematic
-# under-representation in probabilistic tracking -- NOT -scale_invlength (which would
-# do the opposite). Volume bias correction uses -scale_invnodevol.
+# Registry shared verbatim with rules/connectivity.smk AND rules/mask_sweep.smk
+# (mirrored naming). Each corrected variant maps a `meas-` filename tag to a
+# tck2connectome edge-scaling recipe (+/- SIFT2 mu). Length bias uses -scale_length
+# (UP-weights longer streamlines, NOT -scale_invlength); volume bias uses
+# -scale_invnodevol. raw + mu-scaled are the baselines from the core rule.
 #   meas tag              -> tck2connectome scale flags                   mu (SIFT2)
 CONN_VARIANT_RECIPES = {
     "invnodevol":          {"scale": "-scale_invnodevol",               "mu": 0},

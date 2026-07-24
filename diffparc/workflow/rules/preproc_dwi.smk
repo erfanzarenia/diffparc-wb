@@ -1,3 +1,8 @@
+# preproc_dwi.smk -- self-contained raw-DWI preprocessing (used only when NOT
+# importing from snakedwi/prepdwi): denoise -> degibbs -> optional topup/eddy or
+# motion correction -> brain masking -> native bias correction. Produces the
+# desc-preproc (and desc-biascorr) DWI that reg_dwi_to_t1.smk brings into T1w.
+
 from snakebids import bids
 
 
@@ -116,7 +121,6 @@ rule mrdegibbs:
         ),
     container:
         config["singularity"]["diffparc"]
-    #    log: bids(root='logs',suffix='degibbs.log',**config['input_wildcards']['dwi'])
     group:
         "subj"
     shell:
@@ -124,7 +128,6 @@ rule mrdegibbs:
         "cp {input[1]} {output[1]} && "
         "cp {input[2]} {output[2]} && "
         "cp {input[3]} {output[3]}"
-        #2> {log} && ' 
 
 
 # now have nii with just the b0's, want to create the topup phase-encoding text files for each one:
@@ -421,18 +424,6 @@ rule apply_topup_jac:
 # here, use the jac method by default (later can decide if lsr approach can be used based on headers)
 # with jac approach, the jac images need to be concatenated, then avgshell extracted
 
-"""
-rule cp_sidecars_topup_lsr:
-    #TODO: BEST WAY TO TO EXEMPLAR DWI? 
-    input: multiext(bids(root='work',suffix='dwi',desc='degibbs',datatype='dwi',**config['subj_wildcards'],**dwi_exemplar_dict),\
-                '.bvec','.bval','.json')
-    output: multiext(bids(root='work',suffix='dwi',desc='topup',method='lsr',datatype='dwi',**config['subj_wildcards']),\
-                '.bvec','.bval','.json')
-    run:
-        for in_file,out_file in zip(input,output):
-            shell('cp -v {in_file} {out_file}')
-"""
-
 
 rule cp_sidecars_topup_jac:
     input:
@@ -682,9 +673,6 @@ rule concat_runs_json:
         "cp {input[0]} {output}"
 
 
-#    script: '../scripts/concat_json.py'
-
-
 rule get_shells_from_bvals:
     input:
         "{dwi_prefix}.bval",
@@ -760,7 +748,6 @@ rule qc_brainmask_for_eddy:
         ),
         seg=get_dwi_mask(),
     output:
-        #        png = bids(root='qc',subject='{subject}',suffix='mask.png',desc='brain'),
         png=report(
             bids(root="qc", suffix="mask.png", desc="brain", **subj_wildcards),
             caption="../report/brainmask_dwi.rst",
@@ -824,17 +811,10 @@ else:
             "subj"
         shell:
             "cp {input} {output}"
-# --- this is where the choice of susceptibility distortion correction (SDC) is made --
-
-
-
-#
-# get dwi reference for masking, registration -- either topup or degibbs b0
-#  currently, if more than one dwi, we use topup, otherwise, no distortion correction (i.e. get degibbs)
-
-#  TODO: implement other fieldmap based correction, and registration-based correction here too
-
-
+# --- susceptibility distortion correction (SDC) choice is made here ---
+# DWI reference for masking/registration: if >1 dwi we use topup, otherwise no
+# distortion correction (degibbs b0).
+# TODO: implement other fieldmap-based and registration-based correction here too
 def get_dwi_ref(wildcards):
 
     # this gets the number of DWI scans for this subject(session)
@@ -1277,30 +1257,17 @@ rule cp_to_preproc_dwi:
 
 
 # ---------------------------------------------------------------------------
-# DWI signal bias correction -- NATIVE space, immediately after eddy.
+# DWI signal bias correction -- NATIVE space, after motion/eddy and before any
+# registration to T1w (the standard denoise -> degibbs -> motion/eddy -> bias
+# -> FOD order). Producing one bias-corrected DWI (desc-biascorr) here lets it
+# be shared by both the native DTI fit (dwi2tensor_native, mrtrix.smk) and the
+# FOD/tractography branch (via the DWI->T1w resample in reg_dwi_to_t1.smk),
+# instead of estimating two independent bias fields.
 #
-# Standard MRtrix/field convention is denoise -> degibbs -> motion/eddy/
-# susceptibility correction -> bias correction -> response/FOD estimation,
-# with bias correction done in native diffusion space, before any
-# registration to a structural reference. Moved here from a previous
-# post-registration/post-resample position so ONE bias-corrected DWI is
-# computed and shared by:
-#   * the native DTI fit (dwi2tensor_native in mrtrix.smk), directly, and
-#   * the FOD/tractography branch, via DWI->T1w registration/resample
-#     (reg_dwi_to_t1.smk's get_native_dwi_desc()), which now registers and
-#     resamples this bias-corrected image instead of the raw preproc DWI.
-# This replaces two independently-estimated bias fields (one native, one
-# post-resample) with one.
-#
-# Only meaningful in the self-contained (non-import) pipeline. When importing
-# from snakedwi/prepdwi, the DWI arrives already registered/resampled from an
-# external pipeline that does not itself bias-correct, so bias correction (if
-# enabled) still has to happen downstream in T1w space -- see rule
-# dwibiascorrect in mrtrix.smk, which remains for that mode only.
-#
-# Bias correction is a smooth multiplicative intensity operation, not a
-# spatial resample, so gradient directions/timings are untouched: bvec/bval
-# are carried through unchanged alongside the corrected image.
+# Self-contained (non-import) pipeline only, and only when config
+# dwi_biascorrect is set (see get_native_dwi_desc); in import mode the DWI is
+# already fully preprocessed by the external pipeline. Bias correction is a
+# smooth multiplicative operation, so bvec/bval pass through unchanged.
 # ---------------------------------------------------------------------------
 rule dwibiascorrect_native:
     input:

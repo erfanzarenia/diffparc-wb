@@ -19,8 +19,6 @@ analysis_levels: &analysis_levels
  - group
  
 eddy_no_s2v: False
-###eddy_no_quad: False
-###no_bedpost: False
 
 targets_by_analysis_level:
   participant:
@@ -56,8 +54,6 @@ pybids_inputs:
       - acquisition
       - run
 
-   
-
 #these are the command-line parameters
 parse_args:
 
@@ -91,7 +87,6 @@ parse_args:
           participants can be specified with a space separated list.
     nargs: '+'
 
-
   --in_prepdwi_dir:
     help: 'Skip dwi pre-processing and use preprocessing dwi, brainmask, and bedpost, from prepdwi instead. Specify the prepdwi directory that contains the work and prepdwi sub-directories. (default: %(default)s)'
     default: False
@@ -101,36 +96,6 @@ parse_args:
     help: 'Skip dwi pre-processing and use preprocessing dwi, brainmask, and bedpost, from snakedwi instead. Specify the snakedwi directory that contains the sub-* directories. (default: %(default)s)'
     default: False
     type: Path
-
-
-
- ### --use_eddy:
- ###   help: 'Enable eddy  (default: %(default)s)'
- ###   action: 'store_true'
- ###   default: False
-
-
- ### --use_topup:
- ###   help: 'Enable topup  (default: %(default)s)'
- ###   action: 'store_true'
-  ###  default: False
-
-###  --no_bedpost:
- ###   help: 'Disable bedpost  (default: %(default)s)'
- ###   action: 'store_true'
-  ###  default: False
-
-   
-###  --eddy_no_s2v:
- ###   help: 'Disables slice-to-volume in eddy. This option must be used
-      ###    if your dwi json does not include SliceTiming (default: %(default)s)'
- ###   action: 'store_true'
-  ###  default: False
-
-###  --eddy_no_quad:
-   ### help: 'Disables eddy_quad QC report (default: %(default)s)'
-  ###  action: 'store_true'
-  ###  default: False
 
   --masking_method:
     help: 'Brain masking method to use (default: %(default)s)'
@@ -143,31 +108,6 @@ parse_args:
   --b0_bet_frac:
     help: 'BET fractional intensity threshold for b0 masking (default: %(default)s)'
     default: 0.5
-
-###  --slspec_txt:
-###    help: 'Path to custom slspec txt file for use with eddy. Must use this if SliceTiming does not exist in the JSON (default: %(default)s)'
- ###   default: False
- ###   type: Path
-
-
-###  --use_gpu_eddy_container:
-   ### help: 'Use GPU-based eddy container'
-   ### action: 'store_true'
-   ### default: False
-
-
-###  --use_gpu_bedpost_container:
-###    help: 'Use GPU-based bedpost container'
-###    action: 'store_true'
-###    default: False
-
-###  --fod_algorithm:
-###    help: 'Mrtrix FOD algorithm to use (default: %(default)s)'
-###    nargs: '?'
-###    choices: 
-###      - 'csd'
- ###     - 'msmt_csd'
-###    default: 'msmt_csd'
 
   --stat_along_tcks:
     help: 'Statistic to use aggregating DTI metrics along each streamline (default: %(default)s)'
@@ -188,32 +128,6 @@ parse_args:
       - 'min'
       - 'max'
     default: 'mean'
-
-###  --show_parallel_eta:
-###    help: 'Show progress and eta for rules using GNU parallel (warning: using this option in a non-interactive session will generate very large log files) (default: %(default)s)'
-###    action: 'store_true'
-###    default: False
-
-### --anat_only:
- ###   help: 'Run variant of the workflow that only relies on anatomical (T1w) data. This will automatically set the --use_template_parcellation flag, and does not produce volumetric parcellations, or any connectivity or DTI metric features. Note: if you want to use DTI metrics but avoid subject-specific connectivity parcellation, use the --use_template_parcellation option instead. (default: %(default)s)'
-###    action: 'store_true'
-###    default: False
-
-
- ### --use_template_parcellation: 
- ###   help: 'Uses a pre-computed parcellation for surface-based connectivity parcellation. Note: this will still make use of DTI metrics sampled with the parcellation, use the --anat_only` option instead to completely disable the use of dwi data. (default: %(default)s)'
- ###   action: 'store_true'
-  ###  default: False
-
-###  --use_vbm:
-###    help: 'Enable output of voxel-based morphometry and voxel-based DTI metric maps. (default: %(default)s)'
-###    action: 'store_true'
-###    default: False
-
-###  --no_surf:
-###    help: 'Disable surface-based workflow. (default: %(default)s'
-###    action: 'store_true'
-###    default: False
 
   --no_vol:
     help: 'Disable volume-based workflow. (default: %(default)s'
@@ -247,7 +161,6 @@ resample_dwi:
     - 1.25
     - 1.25
 
-
 # DWI signal bias correction -- OFF by default in DiffParcSurf.
 # This pipeline is normally driven by SnakeDWI (in_snakedwi_dir), which already
 # does denoise/degibbs/topup+eddy/gradcorrect/registration AND bias correction
@@ -261,57 +174,13 @@ resample_dwi:
 # to bias-correct itself.
 dwi_biascorrect: False
 
-
-#masking options, provides customization at a per subject level..
-masking:
-  default_method: 'bet_from-b0_frac-1' #b0SyN_from-MNI152NLin2009cSym' #default method to use for brainmasking
-  methods: # list of methods (for QC report)
-    - 'bet_from-b0'
-    - 'bet_from-b0_frac-4'
-    - 'b0SyN_from-MNI152NLin2009cSym'
-  import_path: #only required if the import_mask - not implemented yet..
-    - '/path/to/mask_to_import/sub-{subject}_mask.nii.gz'
-  custom: #use this to set a custom method for a particular subject
-    #'0015': 'bet_from-b0_frac-4'
-    '0015': 'b0SyN_from-MNI152NLin2009cSym'
-
 template: MNI152NLin2009cAsym
-
 
 template_t1w: resources/tpl-MNI152NLin2009cAsym/tpl-MNI152NLin2009cAsym_res-01_T1w.nii.gz
 template_mask: resources/tpl-MNI152NLin2009cAsym/tpl-MNI152NLin2009cAsym_res-01_desc-brain_mask.nii.gz 
 
-        
 #avg bshell images are used for registration for brainmasking dwi
 template_b0: resources/tpl-MNI152NLin2009cAsym/tpl-MNI152NLin2009cAsym_res-dwi_desc-fromhcp_b0.nii.gz
-
-###template_atlas_dseg_nii: resources/tpl-MNI152NLin2009cAsym/tpl-MNI152NLin2009cAsym_res-1_atlas-{atlas}_dseg.nii.gz
-###template_atlas_dseg_tsv: resources/tpl-MNI152NLin2009cAsym/tpl-MNI152NLin2009cAsym_atlas-{atlas}_dseg.tsv
-
-template_tissue_probseg: resources/tpl-MNI152NLin2009cAsym/tpl-MNI152NLin2009cAsym_res-01_label-{tissue}_probseg.nii.gz
-
-#number of times to dilate  (each time 3x3x3 mode dilation)
-n_atlas_dilate: 3
-n_init_mask_dilate: 1 
-
-default_k_tissue_classes: 4 #use higher than 3 to capture contrast-enhanced regions too
-
-#--- NOT SURE WHAT TO DO WITH THIS:
-#use this to specify custom values for subjects, e.g. here sub-P001 will have k=4 tissue classes for Atropos initialization
-subject_k_tissue_classes:
-    P001: 4
-
-
-
-
-tissue_labels:
-  - GM
-  - WM
-  - CSF
-
-###atlases:
-  ###- CerebrA
-
 
 ants:
   dim: 3
@@ -330,29 +199,6 @@ ants:
   shape_update:
   gradient_step: 0.25
 
-#we convert flags and opts automatically 
-#so feel free to prescribe options that are not included here 
-#as long as they are passed to eddy using --name_of_flag or --name_of_opts=value
-###eddy:
-#  flags:
-#    verbose: True
- #   repol: True
-  #  cnr_maps: True
-   # residuals: True
-#    data_is_shelled: True
- # with_s2v:
-  #  mporder: 6
-   # s2v_niter: 5
-    #s2v_lambda: 1
-#    s2v_interp: trilinear
- #   ol_type: 'both'  #can be sw, gw, or both (use sw if no multi-band)
-  #without_s2v:
-   # ol_type: 'sw'  #can be sw, gw, or both (use sw if no multi-band)
-
-
-#Diffparc Section
-
-template_use_dseg: False
 targets:
   harvardoxford7:
     template_dseg: resources/tpl-MNI152NLin2009cAsym/HarvardOxford/CorticalTargets.harvardoxford7.nii.gz
@@ -424,8 +270,6 @@ targets:
       - Networks_16
       - Networks_17
     label_list_txt: resources/tpl-MNI152NLin2009cAsym/Yeo/label_list_Yeo17.txt
-
-
 
   Schaefer100TianS3:
     template_dseg: resources/tpl-MNI152NLin2009cAsym/Schaefer_Tian/Schaefer2018_100P-17N_Tian2020_S3.nii.gz
@@ -624,7 +468,6 @@ targets:
       - 17Networks_LH_SomMotA_3
       - 17Networks_LH_SomMotA_4
      
-     
   Yeo7TianS3:
     template_dseg: resources/tpl-MNI152NLin2009cAsym/Yeo_Tian/Yeo7_TianS3.nii.gz
     labels:
@@ -767,34 +610,15 @@ targets:
       - pCAU-lh 
     label_list_txt: resources/tpl-MNI152NLin2009cAsym/Yeo_Tian/label_list_Yeo17_TianS3.txt
 
-
 select_seeds:
-###  - striatum
 #  - vtasnc
   - vtasncpbp
 
 seeds:
-###  striatum:
-###    template_probseg: resources/tpl-MNI152NLin2009cAsym/CIT168_prob/striatum_hemi-{hemi}_probseg.nii.gz
-###    probseg_threshold: 0.5
-###    probseg_resample: '100%'
-###    surface_decimate_percent: 25
-###    fwhm_conn: 2mm
-###    use_synthseg: False 
-###    targets:
-###      - harvardoxford6
- ###     - harvardoxford7
- ###   streamline_threshold_percent: 10
- ###   seeds_per_vertex:
-  ###    - 250
- ###   seeds_per_voxel:
- ###     - 250
-###    normalize_percentile: 95
   vtasnc:
     template_probseg: resources/tpl-MNI152NLin2009cAsym/CIT168_prob/vtasnc_hemi-{hemi}_probseg.nii.gz
     probseg_threshold: 0.05
     probseg_resample: '200%'
-###    surface_decimate_percent: 0
     use_synthseg: False
     targets: 
     #  - Schaefer100TianS3
@@ -806,8 +630,6 @@ seeds:
     streamline_threshold_percent: 4
     seeds_per_vertex:
       - 250
-###    seeds_per_voxel:
-###      - 5000
     normalize_percentile: 95 #normalize connectivity to each target before maxprob
     
   # --- experimental mask_sweep split midbrain seeds (additive) --------------
@@ -852,36 +674,7 @@ seeds:
       - 250
     normalize_percentile: 95
     
-aux_dseg:
-  synthseg:
-    label_tsv: 'resources/synthseg_simple_labels.tsv'
-  synthsegcortparc:
-    label_tsv: 'resources/synthseg_cortparc_labels.tsv'
-###vbm:
-###  tissue_lut: 
-###    CSF: 1
-###    GM: 2
- ###   WM: 3
- ### dti_metrics:
- ###   - FA
-  ###  - MD
-###  fwhm:
- ###   - 2mm
- ###   - 6mm
-  ###  - 10mm
-  seg_method: 'synthseg'
-
-
 synthseg_labels:
-###  striatum:
-###    L:
-###      - 11
- ###     - 12
- ###     - 26
- ###   R:
- ###     - 50
- ###     - 51
-  ###    - 58
   vtasnc:
     L: "16"
     R: "16"
@@ -890,47 +683,6 @@ hemispheres:
   - 'L'
   - 'R'
 
-###hemi_to_structure:
-###  L: CORTEX_LEFT
-###  R: CORTEX_RIGHT
-###  LR: CORTEX
-
-volume_metrics:
-  - vol
-  - volmni
-  
-### surface_metrics:
-###  - inout
-###  - surfarea
-###  - indepconn
-###  - bundleFA
-###  - bundleMD
-###  - surfFA
-###  - surfMD
-###  - surfarearatio
- ### - surfvol
-###  - surfvolmni
- ### - bundleznormFA
- ### - bundleznormMD
- ### - surfznormFA
-###  - surfznormMD
-###  - bundlepnormFA
-###  - bundlepnormMD
-###  - surfpnormFA
- ### - surfpnormMD
-
-
-###aux_metrics:
-###  - vol
-###  - volmni
-###  - FA
- ### - MD
-###  - znormFA
- ### - znormMD
-###  - pnormFA
- ### - pnormMD
-
-#tractography parameters
 fod_algorithm: msmt_csd
 
 #dwi_upsample: 1.25mm now happens once, in SnakeDWI's/DiffParcSurf's own
@@ -944,34 +696,10 @@ enable_global_conn: true
 
 resample_seed_res: '1x1x1mm' #for resampling seeds/targets
 
-#voxel-based-seeding tractography (can move these to structure-specific config later..)
-
-#surfdisp_normalization_fwhm_mm: 8
-
-#for test data
-###participant_label: 
-###exclude_participant_label:
 masking_method: b0_BET
 b0_bet_frac: 0.5
-#slspec_txt: False
-#eddy_no_s2v: True
-
-#use_eddy: False
-#use_topup: False
-#skip_dwi_preproc: False
-
-
-stat_along_tcks: 'mean'  
-stat_across_tcks: 'mean'
-
-###in_prepdwi_dir: False
-###in_snakedwi_dir: /scratch/Projects/SnakeMake_Test_Space/test_snakedwi/snakedwi
 
 show_parallel_eta: False
-
-nat_only: False
-use_template_parcellation: False
-###use_vbm: False
 
 mrtrix:
   step: 0.625
@@ -1069,7 +797,6 @@ resources:
     threads: 1
     mem_mb: 10000
     time_min: 15
-
 
 # -----------------------------------------------------------------------------
 # Connectivity matrix variants (rules/connectivity.smk + rules/mask_sweep.smk)

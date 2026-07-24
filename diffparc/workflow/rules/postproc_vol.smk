@@ -1,3 +1,8 @@
+# postproc_vol.smk -- volumetric post-processing of the voxelwise connectivity
+# maps: warp conn.nii into template space (nonlinear / linear, plus a tightly
+# cropped variant), then derive maxprob parcellations (winner-take-all across
+# targets) in native and template space.
+
 
 rule nlin_transform_conn_to_template:
     input:

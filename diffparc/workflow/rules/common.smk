@@ -1,3 +1,6 @@
+# common.smk -- shared path helpers used across the rule files.
+
+
 def get_template_prefix(root, subj_wildcards, template):
     """creates prefix for template files, including subject/session wildcards
     so that DAGs for each subject/session are kept independent.

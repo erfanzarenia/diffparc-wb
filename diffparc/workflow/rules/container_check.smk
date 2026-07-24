@@ -1,3 +1,6 @@
+# container_check.smk -- verify FSL / MRtrix / Python are callable inside the container.
+
+
 rule check_diffparc_container:
     output:
         "logs/container_check_fsl.ok"

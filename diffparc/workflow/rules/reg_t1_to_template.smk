@@ -1,3 +1,6 @@
+# reg_t1_to_template.smk -- deformable (greedy) registration of the subject T1w
+# + SynthSeg dseg to the template, producing the subject<->template warp/affine
+# used to bring seeds and target atlases into subject space.
 
 
 rule mask_template_t1w:

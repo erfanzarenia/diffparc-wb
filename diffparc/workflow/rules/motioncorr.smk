@@ -1,3 +1,8 @@
+# motioncorr.smk -- volume-wise rigid motion correction of the DWI series
+# (reg_aladin, parallelized), plus the matching b-vector rotation. Used as the
+# self-contained preprocessing motion-correction path when eddy is not used.
+
+
 rule moco_dwi:
     input:
         dwi=bids(
@@ -21,7 +26,6 @@ rule moco_dwi:
             desc="degibbs",
             **subj_wildcards
         ),
-    #        brainmask=get_dwi_mask(),
     params:
         show_eta="--eta" if config["show_parallel_eta"] else "",
     output:

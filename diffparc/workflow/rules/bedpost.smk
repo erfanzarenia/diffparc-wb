@@ -1,3 +1,8 @@
+# bedpost.smk -- FSL bedpostX ball-and-sticks fitting. Imports a precomputed
+# bedpostX directory from prepdwi/snakedwi when available, otherwise stages the
+# preprocessed DWI and runs bedpostx locally (optionally on GPU).
+
+
 if config["in_prepdwi_dir"]:
 
     def get_bedpost_dir_from_prepdwi(wildcards):

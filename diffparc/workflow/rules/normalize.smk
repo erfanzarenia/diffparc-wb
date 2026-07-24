@@ -1,7 +1,6 @@
-# rules for normalizing dti metrics to help deal with site effects
-
-# uses a tissue segmentation to sample the normalization factors from WM only,
-# to potentially avoid confounds with the amount of CSF etc..
+# normalize.smk -- normalize DTI metric maps (z-score / percentile) to reduce
+# site effects, sampling the normalization factors from WM only (via a tissue
+# dseg) to avoid confounds from the amount of CSF etc.
 
 
 rule resample_tissue_dseg_to_dwi:

@@ -1,3 +1,8 @@
+# prop_seeds_targets.smk -- warp template seed probability maps and target
+# atlases into subject space (via the subject<->template transforms), on an
+# upsampled reference grid, then binarize/trim each seed mask for tracking.
+
+
 def get_ref_mask(wildcards):
     if config["anat_only"]:
         return bids(

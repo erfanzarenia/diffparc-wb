@@ -1,3 +1,9 @@
+# synthseg.smk -- SynthSeg segmentation of the subject (and template) T1w, and
+# derivation of subject-space seed probability maps from it: extract the seed
+# label, then shape-inject the template seed onto it (used when a seed sets
+# use_synthseg: True). Also segments the template for registration.
+
+
 rule run_synthseg:
     input:
         t1=bids(

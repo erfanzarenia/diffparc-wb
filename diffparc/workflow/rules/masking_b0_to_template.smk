@@ -1,4 +1,9 @@
-# this performs registration from subject b0 to template b0, without using any existing mask
+# masking_b0_to_template.smk -- registration-based DWI brain mask: SyN-register
+# the subject b0 to the template b0, then pull the template brain mask back into
+# subject space. Selectable via config masking_method (b0_SyN).
+
+
+# register subject b0 to template b0, without using any existing mask
 rule ants_b0_to_template:
     input:
         flo=get_dwi_ref,

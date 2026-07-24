@@ -1,3 +1,8 @@
+# masking_bet_from-b0.smk -- DWI brain mask via FSL BET on the average b0
+# (N4 -> intensity rescale -> BET -> binarize). One of the maskings selectable
+# through config masking_method (b0_BET); see get_dwi_mask() in preproc_dwi.smk.
+
+
 rule import_avg_b0:
     input:
         get_dwi_ref,
@@ -15,7 +20,7 @@ rule import_avg_b0:
         "cp {input} {output}"
 
 
-# n4
+# N4 bias field correction of the average b0
 rule n4_avg_b0:
     input:
         bids(
