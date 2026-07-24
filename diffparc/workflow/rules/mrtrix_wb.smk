@@ -1,5 +1,6 @@
-# mrtrix_wb.smk
-# Whole-brain tractography
+# mrtrix_wb.smk -- whole-brain, ACT-constrained tractography (iFOD2). Generated
+# in parallel chunks with distinct RNG seeds, then merged into one tractogram.
+
 
 def res(rule, key, default):
     return config.get("resources", {}).get(rule, {}).get(key, default)

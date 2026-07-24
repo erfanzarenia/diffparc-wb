@@ -1,9 +1,11 @@
+# sift2.smk -- SIFT2 filtering of the final tractogram (ACT-aware), producing
+# per-streamline weights and the global mu scaling factor.
+
+
 def res(rule, key, default):
     return config.get("resources", {}).get(rule, {}).get(key, default)
 
-# -----------------------------
-# SIFT2 (ACT-aware)
-# -----------------------------
+
 rule run_sift2:
     input:
         tck=rules.final_tractogram.output.tck,
@@ -27,7 +29,7 @@ rule run_sift2:
         "subj"
     container:
         config["singularity"]["diffparc"]
-    shell:    
+    shell:
         r"""
         set -euo pipefail
         mkdir -p "$(dirname "{log}")"

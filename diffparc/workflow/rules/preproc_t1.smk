@@ -1,3 +1,7 @@
+# preproc_t1.smk -- T1w preprocessing: import -> SynthStrip brain mask ->
+# N4 bias correction -> masked T1w. Feeds registration, SynthSeg and 5TT/ACT.
+
+
 rule import_t1:
     """ This currently just grabs the first T1w image """
     input:

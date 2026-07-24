@@ -1,4 +1,10 @@
+# connectivity.smk -- seed-to-target connectivity from the final tractogram:
+# reslice the seed onto the atlas grid, filter streamlines to the seed, build
+# per-voxel nodes, and run tck2connectome (raw + mu-scaled baselines, plus
+# config-gated bias-corrected variants). Ends with tractography visual QC.
+
 import os
+
 
 def res(rule, key, default):
     return config.get("resources", {}).get(rule, {}).get(key, default)

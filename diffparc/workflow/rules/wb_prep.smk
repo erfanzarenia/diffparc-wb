@@ -1,5 +1,11 @@
+# wb_prep.smk -- prerequisites for tracking: binarize/trim the subject seed
+# masks, and build the 5TT image (+ GMWMI) that makes tracking and SIFT2
+# anatomically constrained (ACT).
+
+
 def res(rule, key, default):
     return config.get("resources", {}).get(rule, {}).get(key, default)
+
 
 # -----------------------------
 # Seed binarization + cleanup

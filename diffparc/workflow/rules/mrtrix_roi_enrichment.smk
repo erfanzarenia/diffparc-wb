@@ -1,5 +1,12 @@
+# mrtrix_roi_enrichment.smk -- optional ROI-seeded enrichment tractography
+# (config roi_enrichment.enabled): track extra streamlines seeded in the seed
+# ROIs, merge per hemi/seed, then combine with the whole-brain tractogram into
+# the final tractogram consumed by SIFT2 and connectivity.
+
+
 def res(rule, key, default):
-    return config.get("resources", {}).get(rule, {}).get(key, default)    
+    return config.get("resources", {}).get(rule, {}).get(key, default)
+
 
 # ROI toggle + seeds list
 def roi_enabled():

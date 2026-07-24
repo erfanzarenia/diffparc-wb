@@ -1,16 +1,15 @@
-# if we skip dwi preproc, then we are loading dwi preproc in T1w space:
+# reg_dwi_to_t1.smk -- get the preprocessed DWI into T1w space. Import modes
+# (in_prepdwi_dir / in_snakedwi_dir) copy an already-registered DWI straight in;
+# the self-contained 'else' branch rigidly registers the native b0 to T1w and
+# resamples the DWI / mask / bvecs onto the T1w grid.
 
 
 def get_native_dwi_desc():
-    # Which desc tag identifies the canonical native (pre-registration,
-    # pre-resample) DWI that the standalone DWI->T1w registration/resample
-    # below (rule reg_dwi_to_t1 / resample_dwi_to_t1w) should operate on. When
-    # bias correction is enabled, this is the DWI bias-corrected in native
-    # space (rule dwibiascorrect_native in preproc_dwi.smk) -- so both this
-    # registration/resample AND the native DTI fit (mrtrix.smk) consume the
-    # SAME bias-corrected DWI, rather than each fitting an independent bias
-    # field. Only relevant to the self-contained ('else', non-import) branch
-    # below: import mode bypasses this file's registration/resample entirely.
+    # desc tag of the native (pre-registration) DWI the self-contained
+    # registration/resample operates on: the bias-corrected DWI
+    # (dwibiascorrect_native, preproc_dwi.smk) when enabled, else plain preproc.
+    # Sharing it with the native DTI fit (mrtrix.smk) avoids estimating two
+    # independent bias fields. Only used in the 'else' (non-import) branch.
     return "biascorr" if config.get("dwi_biascorrect", True) else "preproc"
 
 

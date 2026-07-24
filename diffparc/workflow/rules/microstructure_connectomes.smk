@@ -1,23 +1,15 @@
-# microstructure_connectomes.smk
-# Optional, additive module for the MAIN connectivity pipeline only.
+# microstructure_connectomes.smk -- optional, additive module (MAIN pipeline).
 #
 # For the whole-brain (final) tractogram + its SIFT2 weights, sample diffusion
-# microstructure (FA, MD, RD) along streamlines and build SIFT2-weighted,
+# microstructure (FA, MD, RD) along each streamline, then build SIFT2-weighted,
 # mean-edge atlas connectomes:
-#   1. tcksample -stat_tck mean   -> one mean metric value per streamline
-#   2. tck2connectome -scale_file <per-streamline metric> -stat_edge mean
-#                     -tck_weights_in <sift2>             -> mean-metric connectome
+#   1. tcksample -stat_tck mean            -> one mean metric per streamline
+#   2. tck2connectome -scale_file <metric> -stat_edge mean -tck_weights_in <sift2>
 #
-# Reuses existing pipeline products wherever they already exist:
-#   * whole-brain tractogram   -> rules.final_tractogram (desc-final)
-#   * SIFT2 weights            -> rules.run_sift2
-#   * tensor + FA + MD         -> rules.dwi_to_tensor / rules.tensor_to_metrics
-#   * atlas node parcellation  -> sub-{subject}/anat/..._desc-{targets}_dseg.nii.gz
-# Only RD is missing, so it is added here from the SAME tensor (MSMT-CSD-compatible).
-#
-# Newly generated intermediates (RD map, per-streamline samples) are PRESERVED
-# (not temp) for QC and downstream reuse. Off by default (config
-# microstructure_connectomes). Touches nothing in mask_sweep / enrichment_sweep.
+# Reuses existing products: final_tractogram, run_sift2, and the tensor-derived
+# FA/MD (dwi_to_tensor / tensor_to_metrics). Only RD is generated here, from the
+# SAME tensor. Off by default (config microstructure_connectomes); outputs are
+# preserved (not temp) for QC/reuse.
 
 import os
 
@@ -36,9 +28,8 @@ MICRO_METRICS = config.get("microstructure_connectomes_metrics", ["FA", "MD", "R
 MICRO_SUBJECTS = sorted(set(inputs.input_zip_lists["T1w"]["subject"]))
 
 
-# NOTE: `metric` is constrained PER-RULE below (not globally) -- a global
-# constraint would clash with the many other rules that use a {metric} wildcard
-# (normalize, parcbundles, sampledti, cifti, surface metrics, ...).
+# `metric` (FA|MD|RD) is constrained per-rule below rather than globally, to
+# keep the wildcard scoped to this module.
 
 
 # -----------------------------
