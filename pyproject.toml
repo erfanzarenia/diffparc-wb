@@ -1,7 +1,7 @@
 [tool.poetry]
-name = "diffparc"
+name = "diffparc-wb"
 version = "0.1.0"
-description = "diffparc - Snakebids app for diffusion-based parcellation"
+description = "diffparc-wb - Snakebids app for diffusion-based structural connectivity parcellation"
 authors = ["Ali Khan <alik@robarts.ca>"]
 license = "MIT"
 
@@ -9,7 +9,6 @@ license = "MIT"
 python = "^3.8,<3.11"
 snakebids = "^0.7.0"
 snakemake = "^7.0.0"
-boto3 = "^1.26.133"
 
 [tool.poetry.dev-dependencies]
 snakefmt = "^0.6.0"
@@ -23,8 +22,7 @@ build-backend = "poetry.core.masonry.api"
 
 
 [tool.poetry.scripts]
-diffparc = "diffparc.run:main"
-predict_subj = "predict_subj.run:main"
+diffparc-wb = "diffparc.run:main"
 
 [tool.poe.tasks]
 quality_check = { shell = "isort diffparc/*.py -c && black diffparc --check && snakefmt diffparc --check" }

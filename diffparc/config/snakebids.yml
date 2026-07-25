@@ -1,5 +1,5 @@
 # =============================================================================
-# diffparc-surf configuration
+# diffparc-wb configuration
 # =============================================================================
 
 # ---- Snakebids / BIDS I/O ----------------------------------------------------
@@ -110,8 +110,11 @@ parse_args:
 
 # ---- Execution environment ---------------------------------------------------
 singularity:
-  # override per-machine with $DIFFPARC_CONTAINER
-  diffparc: "/scratch/Tools/diffparc-surf/diffparc/resources/apptainer/diffparc-deps_with_fsl.sif"
+  # Primary pipeline container (REQUIRED): the FSL-enabled diffparc-deps image, whose home is
+  # diffparc/resources/apptainer/diffparc-deps_with_fsl.sif. The value below is a repo-relative
+  # placeholder; for an actual run set an ABSOLUTE path here, or override via $DIFFPARC_CONTAINER
+  # (takes priority) -- the path is used as-is, not resolved against the repo.
+  diffparc: "resources/apptainer/diffparc-deps_with_fsl.sif"
 
 # ---- DWI import & preprocessing ----------------------------------------------
 resample_dwi:
