@@ -1,0 +1,10 @@
+# Canonicalize author/committer identities for git shortlog/log/blame and GitHub.
+# Non-destructive: this only changes how names/emails are DISPLAYED; it does not
+# rewrite any commits. Format: `Canonical Name <canonical@email> <commit@email>`.
+# See `git help mailmap`.
+
+# Erfan Zarenia -- collapse the lowercased name and the HPC login-node emails
+# (ezarenia@l{3,4}.nibi.sharcnet, auto-filled when user.email was unset) into one.
+Erfan Zarenia <erfan.zare.nia@gmail.com>
+Erfan Zarenia <erfan.zare.nia@gmail.com> <ezarenia@l3.nibi.sharcnet>
+Erfan Zarenia <erfan.zare.nia@gmail.com> <ezarenia@l4.nibi.sharcnet>
