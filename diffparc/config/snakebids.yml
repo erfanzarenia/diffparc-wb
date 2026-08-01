@@ -172,10 +172,10 @@ seeds:
     probseg_resample: '200%'
     use_synthseg: False
     targets: 
-    #  - Schaefer100TianS3
-    #  - Schaefer200TianS3
-       - Yeo7TianS3
-    #  - Yeo17TianS3
+    #  - Yeo17TianS4
+    #  - Schaefer100TianS4
+    #  - SynthSegTianS4
+       - Yeo7TianS4
        
     fwhm_conn: 2mm
     streamline_threshold_percent: 4
@@ -194,7 +194,7 @@ seeds:
     probseg_resample: '200%'
     use_synthseg: False
     targets:
-       - Yeo7TianS3
+       - Yeo7TianS4
     fwhm_conn: 2mm
     streamline_threshold_percent: 4
     seeds_per_vertex:
@@ -206,7 +206,7 @@ seeds:
     probseg_resample: '200%'
     use_synthseg: False
     targets:
-       - Yeo7TianS3
+       - Yeo7TianS4
     fwhm_conn: 2mm
     streamline_threshold_percent: 4
     seeds_per_vertex:
@@ -217,8 +217,16 @@ seeds:
     probseg_threshold: 0.05
     probseg_resample: '200%'
     use_synthseg: False
+    # Active seed: parcellate against ALL FOUR target atlases. These are selectable --
+    # comment out any you don't want; the tractography/SIFT2 stages are shared, so each
+    # extra atlas only adds a cheap warp + tck2connectome. All four pair a cortical
+    # parcellation with the Tian S4 subcortex; SynthSegTianS4 uses native SynthSeg
+    # (DKT) cortex instead of a template-warped cortical atlas.
     targets:
-       - Yeo7TianS3
+       - Yeo7TianS4
+       - Yeo17TianS4
+       - Schaefer100TianS4
+       - SynthSegTianS4
     fwhm_conn: 2mm
     streamline_threshold_percent: 4
     seeds_per_vertex:
@@ -309,8 +317,8 @@ targets:
 
 
 
-  Schaefer100TianS3:
-    template_dseg: resources/tpl-MNI152NLin2009cAsym/Schaefer_Tian/Schaefer2018_100P-17N_Tian2020_S3.nii.gz
+  Schaefer100TianS4:
+    template_dseg: resources/tpl-MNI152NLin2009cAsym/Schaefer_Tian/Schaefer2018_100P-17N_Tian2020_S4.nii.gz
     labels:
       - 17Networks_LH_VisCent_ExStr_1
       - 17Networks_LH_VisCent_ExStr_2
@@ -466,8 +474,13 @@ targets:
       - NAc-shell-lh
       - NAc-core-lh
       - pCAU-lh
-    label_list_txt: resources/tpl-MNI152NLin2009cAsym/Schaefer_Tian/label_list_Schaefer2018_100P-17N_Tian2020-S3.txt
+    label_list_txt: resources/tpl-MNI152NLin2009cAsym/Schaefer_Tian/label_list_Schaefer2018_100P-17N_Tian2020-S4.txt
 
+  # FIXME (pre-existing, UNUSED): broken + mislabelled, left as-is (out of scope).
+  # The NIfTI has 554 labels (500 Schaefer + 54 Tian S4) but only 34 are listed below,
+  # so its connectivity matrix would be truncated/wrong. It is also "S3" in name but
+  # S4 in content, and no seed references it. Complete the labels and rename to
+  # Schaefer500TianS4 before ever selecting it.
   Schaefer500TianS3:
     template_dseg: resources/tpl-MNI152NLin2009cAsym/Schaefer_Tian/Schaefer2018_500P-17N_Tian2020_S3.nii.gz
     labels:
@@ -507,8 +520,8 @@ targets:
       - 17Networks_LH_SomMotA_4
      
      
-  Yeo7TianS3:
-    template_dseg: resources/tpl-MNI152NLin2009cAsym/Yeo_Tian/Yeo7_TianS3.nii.gz
+  Yeo7TianS4:
+    template_dseg: resources/tpl-MNI152NLin2009cAsym/Yeo_Tian/Yeo7_TianS4.nii.gz
     labels:
       - Networks_1
       - Networks_2
@@ -571,10 +584,10 @@ targets:
       - NAc-shell-lh
       - NAc-core-lh
       - pCAU-lh 
-    label_list_txt: resources/tpl-MNI152NLin2009cAsym/Yeo_Tian/label_list_Yeo7_TianS3.txt
+    label_list_txt: resources/tpl-MNI152NLin2009cAsym/Yeo_Tian/label_list_Yeo7_TianS4.txt
 
-  Yeo17TianS3:
-    template_dseg: resources/tpl-MNI152NLin2009cAsym/Yeo_Tian/Yeo17_TianS3.nii.gz
+  Yeo17TianS4:
+    template_dseg: resources/tpl-MNI152NLin2009cAsym/Yeo_Tian/Yeo17_TianS4.nii.gz
     labels:
       - Networks_1
       - Networks_2
@@ -647,7 +660,146 @@ targets:
       - NAc-shell-lh
       - NAc-core-lh
       - pCAU-lh 
-    label_list_txt: resources/tpl-MNI152NLin2009cAsym/Yeo_Tian/label_list_Yeo17_TianS3.txt
+    label_list_txt: resources/tpl-MNI152NLin2009cAsym/Yeo_Tian/label_list_Yeo17_TianS4.txt
+
+  # --- Hybrid target: native SynthSeg (DK) cortex + template Tian S4 subcortex -------
+  # Assembled in subject space by rules/target_synthseg_tian.smk -- no template cortical
+  # atlas is warped. SynthSeg --parc gives 68 Desikan-Killiany cortical parcels (34 per
+  # hemisphere) in the subject's own space (reslice only, no inter-subject warp), merged
+  # with the 54-parcel Tian S4 subcortex warped from MNI. Modular: point cortex_lut /
+  # subcortex_dseg at other atlases to swap either half. Columns = 68 cortex (1..68) then
+  # 54 subcortex (69..122), matching the order below. The cortical set is taken from the
+  # repo's authoritative resources/synthseg_cortparc_labels.tsv. Adds one SynthSeg --parc
+  # run per subject; reuses the existing tractography/SIFT2 like every other target.
+  SynthSegTianS4:
+    kind: hybrid_synthseg_tian
+    n_cortex: 68                     # cortical columns (subcortex is offset above this)
+    cortex_lut: resources/tpl-MNI152NLin2009cAsym/SynthSeg_Tian/synthseg_cortex_labels.tsv
+    subcortex_dseg: resources/tpl-MNI152NLin2009cAsym/SynthSeg_Tian/TianS4_subcortex_dseg.nii.gz
+    labels:
+      - ctx-lh-bankssts
+      - ctx-lh-caudalanteriorcingulate
+      - ctx-lh-caudalmiddlefrontal
+      - ctx-lh-cuneus
+      - ctx-lh-entorhinal
+      - ctx-lh-fusiform
+      - ctx-lh-inferiorparietal
+      - ctx-lh-inferiortemporal
+      - ctx-lh-isthmuscingulate
+      - ctx-lh-lateraloccipital
+      - ctx-lh-lateralorbitofrontal
+      - ctx-lh-lingual
+      - ctx-lh-medialorbitofrontal
+      - ctx-lh-middletemporal
+      - ctx-lh-parahippocampal
+      - ctx-lh-paracentral
+      - ctx-lh-parsopercularis
+      - ctx-lh-parsorbitalis
+      - ctx-lh-parstriangularis
+      - ctx-lh-pericalcarine
+      - ctx-lh-postcentral
+      - ctx-lh-posteriorcingulate
+      - ctx-lh-precentral
+      - ctx-lh-precuneus
+      - ctx-lh-rostralanteriorcingulate
+      - ctx-lh-rostralmiddlefrontal
+      - ctx-lh-superiorfrontal
+      - ctx-lh-superiorparietal
+      - ctx-lh-superiortemporal
+      - ctx-lh-supramarginal
+      - ctx-lh-frontalpole
+      - ctx-lh-temporalpole
+      - ctx-lh-transversetemporal
+      - ctx-lh-insula
+      - ctx-rh-bankssts
+      - ctx-rh-caudalanteriorcingulate
+      - ctx-rh-caudalmiddlefrontal
+      - ctx-rh-cuneus
+      - ctx-rh-entorhinal
+      - ctx-rh-fusiform
+      - ctx-rh-inferiorparietal
+      - ctx-rh-inferiortemporal
+      - ctx-rh-isthmuscingulate
+      - ctx-rh-lateraloccipital
+      - ctx-rh-lateralorbitofrontal
+      - ctx-rh-lingual
+      - ctx-rh-medialorbitofrontal
+      - ctx-rh-middletemporal
+      - ctx-rh-parahippocampal
+      - ctx-rh-paracentral
+      - ctx-rh-parsopercularis
+      - ctx-rh-parsorbitalis
+      - ctx-rh-parstriangularis
+      - ctx-rh-pericalcarine
+      - ctx-rh-postcentral
+      - ctx-rh-posteriorcingulate
+      - ctx-rh-precentral
+      - ctx-rh-precuneus
+      - ctx-rh-rostralanteriorcingulate
+      - ctx-rh-rostralmiddlefrontal
+      - ctx-rh-superiorfrontal
+      - ctx-rh-superiorparietal
+      - ctx-rh-superiortemporal
+      - ctx-rh-supramarginal
+      - ctx-rh-frontalpole
+      - ctx-rh-temporalpole
+      - ctx-rh-transversetemporal
+      - ctx-rh-insula
+      - HIP-head-m-rh
+      - HIP-head-l-rh
+      - HIP-body-m-rh
+      - HIP-body-l-rh
+      - AMY-SM-rh
+      - AMY-CL-rh
+      - THA-DPl-rh
+      - THA-DPm-rh
+      - THA-VPm-rh
+      - THA-VPl-rh
+      - THA-VAi-rh
+      - THA-VAs-rh
+      - THA-DAm-rh
+      - THA-DAl-rh
+      - PUT-VA-rh
+      - PUT-DA-rh
+      - PUT-VP-rh
+      - PUT-DP-rh
+      - CAU-VA-rh
+      - CAU-DA-rh
+      - HIP-tail-rh
+      - lAMY-rh
+      - pGP-rh
+      - aGP-rh
+      - NAc-shell-rh
+      - NAc-core-rh
+      - pCAU-rh
+      - HIP-head-m-lh
+      - HIP-head-l-lh
+      - HIP-body-m-lh
+      - HIP-body-l-lh
+      - AMY-SM-lh
+      - AMY-CL-lh
+      - THA-DPl-lh
+      - THA-DPm-lh
+      - THA-VPm-lh
+      - THA-VPl-lh
+      - THA-VAi-lh
+      - THA-VAs-lh
+      - THA-DAm-lh
+      - THA-DAl-lh
+      - PUT-VA-lh
+      - PUT-DA-lh
+      - PUT-VP-lh
+      - PUT-DP-lh
+      - CAU-VA-lh
+      - CAU-DA-lh
+      - HIP-tail-lh
+      - lAMY-lh
+      - pGP-lh
+      - aGP-lh
+      - NAc-shell-lh
+      - NAc-core-lh
+      - pCAU-lh
+    label_list_txt: resources/tpl-MNI152NLin2009cAsym/SynthSeg_Tian/label_list_SynthSegTianS4.txt
 
 
 # ---- Tractography ------------------------------------------------------------
@@ -710,7 +862,7 @@ tractography_qc_seed: 7
 # FA/MD/RD-weighted atlas connectomes from the final tractogram + SIFT2 weights
 microstructure_connectomes: True
 microstructure_connectomes_targets:
-  - Yeo7TianS3
+  - Yeo7TianS4
 microstructure_connectomes_metrics:
   - FA
   - MD

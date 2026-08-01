@@ -43,7 +43,7 @@ Given a BIDS dataset with a T1w image and (preprocessed) diffusion data, `diffpa
 
 1. Prepares the T1w image and registers it to the `MNI152NLin2009cAsym` template.
 2. Warps the **seed** priors (e.g. VTA / SNc / PBP from CIT168) and a whole-brain **target**
-   atlas (e.g. Yeo-7 cortical + Tian S3 subcortical) into subject space.
+   atlas (e.g. Yeo-7 cortical + Tian S4 subcortical) into subject space.
 3. Fits MSMT-CSD fibre orientation distributions and a diffusion tensor (FA/MD/RD).
 4. Runs **whole-brain, ACT-constrained tractography**, enriched with **ROI-targeted**
    tracking seeded in the deep-brain ROI.
@@ -178,9 +178,12 @@ Defaults live in [`diffparc/config/snakebids.yml`](diffparc/config/snakebids.yml
 commonly adjusted settings:
 
 - **Seeds** (`select_seeds`, `seeds`): which deep-brain ROI(s) to estimate the connectivity for.
-- **Targets** (`targets`, per-seed `targets`): the target atlas the seed connectivity is estimated to.
+- **Targets** (`targets`, per-seed `targets`): which whole-brain atlas(es) the seed connectivity is
+  estimated to. This branch offers `Yeo7TianS4` (default), `Yeo17TianS4`, `Schaefer100TianS4`, and the
+  native-cortex hybrid `SynthSegTianS4`; all share the tractography, and any combination can be listed.
+  See the [configuration guide](diffparc/config/README.md#seeds-and-targets).
 - **Tractography** (`mrtrix`, `wb_chunk_*`, `roi_enrichment`): step/angle/length, streamline
-  counts (per the whole bran), ROI enrichment streamline counts (per voxel).
+  counts (per the whole brain), ROI enrichment streamline counts (per voxel).
 - **Connectivity variants** (`connectivity_variants`): which corrected matrices to emit.
 - **Microstructure / QC** (`microstructure_connectomes`, `tractography_qc`).
 - **Resources** (`resources`): per-rule threads/memory/time for tuning on your hardware.

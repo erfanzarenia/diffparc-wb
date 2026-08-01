@@ -172,6 +172,30 @@ def conn_variant_meas_enabled():
 
 
 # -----------------------------
+# Target atlas classes (template-warped vs SynthSeg/Tian hybrid)
+# -----------------------------
+# Template targets carry a `template_dseg` and are warped by prop_seeds_targets.smk.
+# Hybrid targets carry `kind: hybrid_synthseg_tian` and are assembled in subject space
+# by target_synthseg_tian.smk. The regexes constrain the {targets} wildcard so the two
+# rules' identical desc-{targets}_dseg outputs never collide (an empty class -> a
+# never-matching pattern).
+def _target_names(pred):
+    return [k for k, v in config.get("targets", {}).items() if pred(v)]
+
+
+TEMPLATE_TARGET_NAMES = _target_names(lambda v: "template_dseg" in v)
+HYBRID_TARGET_NAMES = _target_names(lambda v: v.get("kind") == "hybrid_synthseg_tian")
+
+
+def _targets_regex(names):
+    return "|".join(names) if names else r"$^"  # $^ never matches a real target
+
+
+TEMPLATE_TARGETS_RE = _targets_regex(TEMPLATE_TARGET_NAMES)
+HYBRID_TARGETS_RE = _targets_regex(HYBRID_TARGET_NAMES)
+
+
+# -----------------------------
 # Final target helpers
 # -----------------------------
 def get_subj_global_conn_sift2():
@@ -281,7 +305,7 @@ def get_microstructure_connectome_outputs():
         return []
 
     subjects = sorted(set(inputs.input_zip_lists["T1w"]["subject"]))
-    targets = config.get("microstructure_connectomes_targets", ["Yeo7TianS3"])
+    targets = config.get("microstructure_connectomes_targets", ["Yeo7TianS4"])
     metrics = config.get("microstructure_connectomes_metrics", ["FA", "MD", "RD"])
     return expand(
         "sub-{subject}/tracts/"
@@ -308,6 +332,7 @@ include: "rules/preproc_t1.smk"
 include: "rules/reg_t1_to_template.smk"
 include: "rules/synthseg.smk"
 include: "rules/prop_seeds_targets.smk"
+include: "rules/target_synthseg_tian.smk"
 
 if not config["anat_only"]:
     include: "rules/preproc_dwi.smk"

@@ -107,6 +107,12 @@ rule transform_seed_to_subject:
 
 
 rule transform_targets_to_subject:
+    # Template targets only (those with a `template_dseg`). Hybrid targets
+    # (kind: hybrid_synthseg_tian) are built by target_synthseg_tian.smk instead;
+    # this constraint keeps the two rules' identical desc-{targets}_dseg outputs
+    # from colliding.
+    wildcard_constraints:
+        targets=TEMPLATE_TARGETS_RE,
     input:
         targets=lambda wildcards: os.path.join(
             workflow.basedir,

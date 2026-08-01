@@ -23,7 +23,7 @@ LABEL_CONNECTOME_SCRIPT = os.path.join(
 )
 
 MICRO_ENABLED = bool(config.get("microstructure_connectomes", False))
-MICRO_TARGETS = config.get("microstructure_connectomes_targets", ["Yeo7TianS3"])
+MICRO_TARGETS = config.get("microstructure_connectomes_targets", ["Yeo7TianS4"])
 MICRO_METRICS = config.get("microstructure_connectomes_metrics", ["FA", "MD", "RD"])
 MICRO_SUBJECTS = sorted(set(inputs.input_zip_lists["T1w"]["subject"]))
 
@@ -119,7 +119,9 @@ rule microstructure_connectome:
         tck=rules.final_tractogram.output.tck,
         sift2_weights=rules.run_sift2.output.weights,
         scale=rules.microstructure_sample.output.sample,
-        nodes=rules.transform_targets_to_subject.output.targets,
+        # Generic target dseg (whichever rule builds it: template warp OR hybrid),
+        # same as build_seed_nodes -- keeps microstructure target-agnostic.
+        nodes="sub-{subject}/anat/sub-{subject}_desc-{targets}_dseg.nii.gz",
     output:
         connectivity_matrix=(
             "sub-{subject}/tracts/"

@@ -13,7 +13,8 @@ unless `--no_vol` / `anat_only` is set.
 | T1w preprocessing | `preproc_t1.smk` | Import T1w, SynthStrip brain mask, N4, masked T1w. |
 | T1w → template | `reg_t1_to_template.smk` | Deformable (greedy) registration to `MNI152NLin2009cAsym`. |
 | Segmentation | `synthseg.smk` | SynthSeg on subject and template; seed probability maps via shape injection. |
-| Seeds & targets | `prop_seeds_targets.smk` | Warp template seeds and the target atlas into subject space; binarise/trim seed masks. |
+| Seeds & targets | `prop_seeds_targets.smk` | Warp template seeds and (template) target atlases into subject space; binarise/trim seed masks. |
+| Hybrid target | `target_synthseg_tian.smk` | Assemble the hybrid `SynthSegTianS4` target: reslice native SynthSeg cortex + warp the Tian S4 subcortex + merge into one contiguous dseg. Only for `kind: hybrid_synthseg_tian` targets; template targets skip it. |
 | DWI preprocessing | `preproc_dwi.smk` | Self-contained raw-DWI path: denoise → degibbs → topup/eddy or motion correction → masking → native bias correction. *(Skipped in import mode.)* |
 | Motion correction | `motioncorr.smk` | Volume-wise rigid motion correction (used when eddy is off). |
 | Brain masking | `masking_bet_from-b0.smk`, `masking_b0_to_template.smk` | DWI brain mask via BET-on-b0 or registration to the template. |
@@ -37,6 +38,9 @@ unless `--no_vol` / `anat_only` is set.
 - **Resources** — tractography-heavy rules read `threads`/`mem_mb`/`time` from the config
   `resources` block via a small `res()` helper.
 - **Scripts** — non-trivial logic lives in [`scripts/`](scripts/) (voxel-node building,
-  connectome slicing/labelling, tractography QC, DWI preprocessing helpers).
+  connectome slicing/labelling, tractography QC, hybrid-target merging, DWI preprocessing helpers).
+- **Targets are generic** — every atlas in a seed's `targets:` list flows through the same
+  `transform`/hybrid → `build_seed_nodes` → `tck2connectome` path, so adding one reuses the shared
+  tractography and SIFT2 (see the [config guide](../config/README.md#seeds-and-targets)).
 
 See the [configuration guide](../config/README.md) for the knobs that drive these rules.
