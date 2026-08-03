@@ -1,7 +1,7 @@
 [tool.poetry]
-name = "diffparc"
+name = "diffparc-wb"
 version = "0.1.0"
-description = "diffparc - Snakebids app for diffusion-based parcellation"
+description = "diffparc-wb - Snakebids app for diffusion-based structural connectivity parcellation"
 authors = ["Ali Khan <alik@robarts.ca>"]
 license = "MIT"
 
@@ -23,7 +23,7 @@ build-backend = "poetry.core.masonry.api"
 
 
 [tool.poetry.scripts]
-diffparc = "diffparc.run:main"
+diffparc-wb = "diffparc.run:main"
 predict_subj = "predict_subj.run:main"
 
 [tool.poe.tasks]

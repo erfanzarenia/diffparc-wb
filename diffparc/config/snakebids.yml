@@ -137,12 +137,11 @@ parse_args:
 #---- to update below this
 
 singularity:
- # Deployment-specific path. Override per-machine with the DIFFPARC_CONTAINER env
- # var (see Snakefile) instead of editing this tracked default, e.g. on Compute
- # Canada: export DIFFPARC_CONTAINER=$SCRATCH/containers/diffparc-deps_with_fsl.sif
- #diffparc: 'docker://khanlab/diffparc-deps:v0.1.0-fix'
- #diffparc: '/scratch/Tools/container_apps/diffparc-deps_with_fsl.sif'
-  diffparc: "/scratch/Tools/diffparc-surf/diffparc/resources/apptainer/diffparc-deps_with_fsl.sif"
+  # Primary pipeline container (REQUIRED): the FSL-enabled diffparc-deps image, whose home is
+  # diffparc/resources/apptainer/diffparc-deps_with_fsl.sif. The value below is a repo-relative
+  # placeholder; for an actual run set an ABSOLUTE path here, or override via $DIFFPARC_CONTAINER
+  # (takes priority) -- the path is used as-is, not resolved against the repo.
+  diffparc: "resources/apptainer/diffparc-deps_with_fsl.sif"
 
 # Options for resampling dwi in T1w space
 #  1. can resample as T1w resolution
