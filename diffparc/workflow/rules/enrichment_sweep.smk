@@ -116,6 +116,10 @@ COMBINED = _TMP + "/sub-{subject}_label-{seed}_level-{level}_desc-combined_tract
 #   qc/enrichment_sweep/roi_max/                    level-independent maximal-ROI tractography QC
 #   qc/enrichment_sweep/<summary.csv>               cross-level summary (top level)
 _T_COND = _TRACTS + "/cond-{cond}"
+# Connectivity matrices live under connectivity/ (deliverables), separate from the
+# tractograms/weights that stay in tracts/ -- mirrors the core output layout.
+_CONN = "sub-{subject}/connectivity/enrichment_sweep"
+_C_COND = _CONN + "/cond-{cond}"
 _Q_COND = _QC + "/cond-{cond}"
 _Q_CONN = _Q_COND + "/connectome"
 _Q_SIFT2 = _Q_COND + "/sift2"
@@ -673,7 +677,7 @@ rule enrich_voxelwise_connectivity:
         mu=rules.enrich_sift2.output.mu,
     output:
         connectivity_matrix=(
-            _T_COND + "/sub-{subject}_hemi-{hemi}_label-{seed}_cond-{cond}"
+            _C_COND + "/sub-{subject}_hemi-{hemi}_label-{seed}_cond-{cond}"
             "_desc-{targets}_connectivity_matrix.csv"
         ),
         connectivity_matrix_raw=(
@@ -774,7 +778,7 @@ rule enrich_voxelwise_connectivity_invnodevol:
         mu=rules.enrich_sift2.output.mu,
     output:
         connectivity_matrix=(
-            _T_COND + "/sub-{subject}_hemi-{hemi}_label-{seed}_cond-{cond}"
+            _C_COND + "/sub-{subject}_hemi-{hemi}_label-{seed}_cond-{cond}"
             "_scale-invnodevol_desc-{targets}_connectivity_matrix.csv"
         ),
         connectivity_matrix_raw=(
@@ -963,7 +967,7 @@ rule enrich_voxelwise_connectivity_propagated:
         mu=enrich_mu_max,
     output:
         connectivity_matrix=(
-            _T_COND + "/sub-{subject}_hemi-{hemi}_label-{seed}_cond-{cond}"
+            _C_COND + "/sub-{subject}_hemi-{hemi}_label-{seed}_cond-{cond}"
             "_sift2-propagated_desc-{targets}_connectivity_matrix.csv"
         ),
         connectivity_matrix_raw=(
@@ -1055,7 +1059,7 @@ rule enrich_voxelwise_connectivity_propagated_invnodevol:
         mu=enrich_mu_max,
     output:
         connectivity_matrix=(
-            _T_COND + "/sub-{subject}_hemi-{hemi}_label-{seed}_cond-{cond}"
+            _C_COND + "/sub-{subject}_hemi-{hemi}_label-{seed}_cond-{cond}"
             "_sift2-propagated_scale-invnodevol_desc-{targets}_connectivity_matrix.csv"
         ),
         connectivity_matrix_raw=(
@@ -1325,7 +1329,7 @@ def _enrich_fingerprint_outputs():
     so the two cannot share code)."""
     def fp(extra_tag):
         return expand(
-            _T_COND + "/sub-{subject}_hemi-{hemi}_label-{seed}_cond-{cond}"
+            _C_COND + "/sub-{subject}_hemi-{hemi}_label-{seed}_cond-{cond}"
             + extra_tag + "_desc-{targets}_connectivity_matrix.csv",
             subject=ENRICH_SUBJECTS, seed=ENRICH_SEED, hemi=ENRICH_HEMIS,
             cond=ENRICH_CONDS, targets=ENRICH_TARGETS,
@@ -1365,7 +1369,7 @@ def _enrich_qc_outputs():
         cond=ENRICH_CONDS, art=_ENRICH_QC_ARTS,
     )
     fod = expand(
-        "sub-{subject}/qc/connectivity/sub-{subject}_desc-fod_decmap.mif",
+        "sub-{subject}/qc/tractography/sub-{subject}_desc-fod_decmap.mif",
         subject=ENRICH_SUBJECTS,
     )
     return wb + filtered + fod

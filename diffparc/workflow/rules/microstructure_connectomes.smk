@@ -127,7 +127,7 @@ rule microstructure_connectome:
         nodes=rules.transform_targets_to_subject.output.targets,
     output:
         connectivity_matrix=(
-            "sub-{subject}/tracts/"
+            "sub-{subject}/connectivity/"
             "sub-{subject}_desc-{targets}_meas-{metric}_connectivity_matrix.csv"
         ),
         connectome_raw=temp(
@@ -180,7 +180,7 @@ rule microstructure_connectome:
 rule all_microstructure_connectomes:
     input:
         expand(
-            "sub-{subject}/tracts/"
+            "sub-{subject}/connectivity/"
             "sub-{subject}_desc-{targets}_meas-{metric}_connectivity_matrix.csv",
             subject=MICRO_SUBJECTS, targets=MICRO_TARGETS, metric=MICRO_METRICS,
         ) if MICRO_ENABLED else [],

@@ -39,6 +39,11 @@ Additive and config-gated; they reuse the core products and do not change core o
 
 - **Output paths** are built with Snakebids' `bids()` helper, so filenames follow BIDS entity
   conventions (`sub-…_hemi-…_label-…_desc-…_…`).
+- **Output layout** — per subject, files are grouped by kind: `anat/`, `dwi/`, `warps/` (inputs and
+  intermediates); `tracts/` (tractograms plus their SIFT2 weights and µ); `connectivity/` (the
+  seed→target and microstructure matrices — the deliverables); and `qc/`, split into
+  `qc/tractography/` and `qc/connectivity/`. The sweeps mirror this: their matrices go under
+  `connectivity/{mask,enrichment}_sweep/`, with QC namespaced under `qc/{mask,enrichment}_sweep/`.
 - **Containers**: every rule that calls a neuroimaging tool declares the `singularity` container;
   run with `--use-singularity`.
 - **Grouping**: most rules use `group: "subj"` so a subject's work can be bundled into one

@@ -189,7 +189,7 @@ def get_subj_global_conn_sift2():
                 expand(
                     bids(
                         root=root,
-                        datatype="tracts",
+                        datatype="connectivity",
                         hemi="{hemi}",
                         desc="{targets}",
                         label="{seed}",
@@ -226,7 +226,7 @@ def get_connectivity_variant_outputs():
         files.extend(
             expand(
                 expand(
-                    "sub-{subject}/tracts/"
+                    "sub-{subject}/connectivity/"
                     "sub-{subject}_hemi-{hemi}_label-{seed}_desc-{targets}"
                     "_meas-{meas}_connectivity_matrix.csv",
                     seed=seed,
@@ -267,7 +267,7 @@ def get_mask_sweep_outputs():
 
     # Baseline (mu-scaled) matrices -- unchanged.
     files = expand(
-        "sub-{subject}/tracts/mask_sweep/{seed}/{mask_source}/"
+        "sub-{subject}/connectivity/mask_sweep/{seed}/{mask_source}/"
         "sub-{subject}_hemi-{hemi}_label-{seed}_thr-{thr_tag}_desc-{targets}_connectivity_matrix.csv",
         **common,
     )
@@ -277,7 +277,7 @@ def get_mask_sweep_outputs():
     meas = conn_variant_meas_enabled()
     if meas:
         files += expand(
-            "sub-{subject}/tracts/mask_sweep/{seed}/{mask_source}/"
+            "sub-{subject}/connectivity/mask_sweep/{seed}/{mask_source}/"
             "sub-{subject}_hemi-{hemi}_label-{seed}_thr-{thr_tag}_desc-{targets}"
             "_meas-{meas}_connectivity_matrix.csv",
             meas=meas,
@@ -329,7 +329,7 @@ def get_enrichment_sweep_outputs():
 
     # Voxelwise connectivity fingerprint per condition x hemi (same as main pipeline).
     fingerprints = expand(
-        "sub-{subject}/tracts/enrichment_sweep/cond-{cond}/"
+        "sub-{subject}/connectivity/enrichment_sweep/cond-{cond}/"
         "sub-{subject}_hemi-{hemi}_label-{seed}_cond-{cond}_desc-{targets}_connectivity_matrix.csv",
         subject=subjects,
         seed=seed,
@@ -343,7 +343,7 @@ def get_enrichment_sweep_outputs():
     fingerprints_invnodevol = []
     if es.get("volume_bias_correction", False):
         fingerprints_invnodevol = expand(
-            "sub-{subject}/tracts/enrichment_sweep/cond-{cond}/"
+            "sub-{subject}/connectivity/enrichment_sweep/cond-{cond}/"
             "sub-{subject}_hemi-{hemi}_label-{seed}_cond-{cond}"
             "_scale-invnodevol_desc-{targets}_connectivity_matrix.csv",
             subject=subjects,
@@ -359,7 +359,7 @@ def get_enrichment_sweep_outputs():
     fingerprints_propagated = []
     if es.get("sift2_propagated", False):
         fingerprints_propagated = expand(
-            "sub-{subject}/tracts/enrichment_sweep/cond-{cond}/"
+            "sub-{subject}/connectivity/enrichment_sweep/cond-{cond}/"
             "sub-{subject}_hemi-{hemi}_label-{seed}_cond-{cond}"
             "_sift2-propagated_desc-{targets}_connectivity_matrix.csv",
             subject=subjects,
@@ -370,7 +370,7 @@ def get_enrichment_sweep_outputs():
         )
         if es.get("volume_bias_correction", False):
             fingerprints_propagated += expand(
-                "sub-{subject}/tracts/enrichment_sweep/cond-{cond}/"
+                "sub-{subject}/connectivity/enrichment_sweep/cond-{cond}/"
                 "sub-{subject}_hemi-{hemi}_label-{seed}_cond-{cond}"
                 "_sift2-propagated_scale-invnodevol_desc-{targets}_connectivity_matrix.csv",
                 subject=subjects,
@@ -400,7 +400,7 @@ def get_enrichment_sweep_outputs():
             subject=subjects, seed=seed, hemi=hemis, cond=conds, art=arts,
         )
         qc += expand(
-            "sub-{subject}/qc/connectivity/sub-{subject}_desc-fod_decmap.mif",
+            "sub-{subject}/qc/tractography/sub-{subject}_desc-fod_decmap.mif",
             subject=subjects,
         )
 
@@ -422,17 +422,17 @@ def get_tractography_qc_outputs():
 
     # Per subject: whole-brain (final) tractogram QC + FOD DEC background.
     files = expand(
-        "sub-{subject}/qc/connectivity/sub-{subject}_desc-final_{art}",
+        "sub-{subject}/qc/tractography/sub-{subject}_desc-final_{art}",
         subject=subjects, art=arts,
     )
     files += expand(
-        "sub-{subject}/qc/connectivity/sub-{subject}_desc-fod_decmap.mif",
+        "sub-{subject}/qc/tractography/sub-{subject}_desc-fod_decmap.mif",
         subject=subjects,
     )
     # Per seed x hemi: seed-filtered tractogram QC.
     for seed in config["select_seeds"]:
         files += expand(
-            "sub-{subject}/qc/connectivity/"
+            "sub-{subject}/qc/tractography/"
             "sub-{subject}_hemi-{hemi}_label-{seed}_desc-seedfiltered_{art}",
             subject=subjects, hemi=config["hemispheres"], seed=seed, art=arts,
         )
@@ -451,7 +451,7 @@ def get_microstructure_connectome_outputs():
     targets = config.get("microstructure_connectomes_targets", ["Yeo7TianS3"])
     metrics = config.get("microstructure_connectomes_metrics", ["FA", "MD", "RD"])
     return expand(
-        "sub-{subject}/tracts/"
+        "sub-{subject}/connectivity/"
         "sub-{subject}_desc-{targets}_meas-{metric}_connectivity_matrix.csv",
         subject=subjects, targets=targets, metric=metrics,
     )

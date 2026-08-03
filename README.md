@@ -83,7 +83,7 @@ native template-to-subject probseg vs a brainstem-injected prior), so the varian
 side by side.
 
 - **Config:** `mask_sweep` (`enabled`, `thresholds`, `mask_sources`).
-- **Outputs:** `sub-*/tracts/mask_sweep/…` plus per-threshold QC.
+- **Outputs:** `sub-*/connectivity/mask_sweep/…` (matrices) plus per-threshold QC under `qc/mask_sweep/`.
 - **Rules:** [`rules/mask_sweep.smk`](diffparc/workflow/rules/mask_sweep.smk).
 
 ### ROI-enrichment sweep (`enrichment_sweep`)
@@ -95,7 +95,7 @@ baseline, and compares the resulting fingerprints. SIFT2 is either **re-fit** pe
 **propagated** once from the maximal tractogram down the nested subsample.
 
 - **Config:** `enrichment_sweep` (`enabled`, `seed`, `levels`, `volume_bias_correction`, `sift2_propagated`, …).
-- **Outputs:** `sub-*/tracts/enrichment_sweep/cond-*/…`.
+- **Outputs:** `sub-*/connectivity/enrichment_sweep/cond-*/…` (matrices), with tractograms/weights under `tracts/enrichment_sweep/cond-*/` and QC under `qc/enrichment_sweep/`.
 - **Rules:** [`rules/enrichment_sweep.smk`](diffparc/workflow/rules/enrichment_sweep.smk).
 
 Both sweeps are mapped out rule-by-rule in the [workflow guide](diffparc/workflow/README.md).
@@ -233,13 +233,17 @@ Results are written under `<output_dir>` in BIDS-derivatives layout, per subject
 
 ```
 sub-<id>/
-├── anat/     preprocessed T1w, brain mask, SynthSeg, subject-space seeds & target atlas
-├── dwi/      MRtrix FODs, tensor and FA/MD/RD maps, brain mask
-├── tracts/   connectivity matrices (the primary deliverable) and SIFT2 weights
-└── qc/       tractography QC (TDI, endpoints, DEC maps, length histograms), registration QC
+├── anat/          preprocessed T1w, brain mask, SynthSeg, subject-space seeds & target atlas
+├── dwi/           MRtrix FODs, tensor and FA/MD/RD maps, brain mask
+├── warps/         subject↔template affine and (inverse) warps
+├── tracts/        tractograms (.tck) plus their SIFT2 weights and µ
+├── connectivity/  seed→target connectivity matrices (+ microstructure connectomes; sweep
+│                  matrices under connectivity/{mask,enrichment}_sweep/)
+└── qc/            qc/tractography/ (TDI, endpoints, DEC, lengths, tckinfo), qc/connectivity/
+                   (assignments, seed-voxel index, per-matrix QC), and qc/{mask,enrichment}_sweep/
 ```
 
-The primary deliverables are the per-seed connectivity matrices in `tracts/`:
+The primary deliverables are the per-seed connectivity matrices in `connectivity/`:
 
 - `..._label-<seed>_desc-<targets>_connectivity_matrix.csv`: raw SIFT2-weighted
   **seed-voxel × target-parcel** connectivity (plus `meas-muscaled` and, when enabled,

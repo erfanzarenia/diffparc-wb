@@ -118,7 +118,7 @@ def _mask_sweep_all_outputs():
     )
 
     out = expand(
-        "sub-{subject}/tracts/mask_sweep/{seed}/{mask_source}/"
+        "sub-{subject}/connectivity/mask_sweep/{seed}/{mask_source}/"
         "sub-{subject}_hemi-{hemi}_label-{seed}_thr-{thr_tag}_desc-{targets}_connectivity_matrix.csv",
         **common,
     )
@@ -126,7 +126,7 @@ def _mask_sweep_all_outputs():
     meas = conn_variant_meas_enabled()
     if meas:
         out += expand(
-            "sub-{subject}/tracts/mask_sweep/{seed}/{mask_source}/"
+            "sub-{subject}/connectivity/mask_sweep/{seed}/{mask_source}/"
             "sub-{subject}_hemi-{hemi}_label-{seed}_thr-{thr_tag}_desc-{targets}"
             "_meas-{meas}_connectivity_matrix.csv",
             meas=meas,
@@ -569,18 +569,18 @@ rule sweep_voxelwise_connectivity:
         # ancient() so a touched main SIFT2 fit doesn't force the sweep to re-run,
         # matching how the tractogram/weights are referenced above.
         mu=ancient(
-            "sub-{subject}/qc/sub-{subject}_desc-final_method-mrtrix_sift2_mu.txt"
+            "sub-{subject}/tracts/sub-{subject}_desc-final_method-mrtrix_sift2_mu.txt"
         ),
     output:
         # MAIN deliverable = the RAW SIFT2 weight-sum block (untagged csv); the
         # SIFT2-mu-scaled block is preserved alongside as meas-muscaled. Same scheme
         # as connectivity.smk (mirrored naming).
         connectivity_matrix=(
-            "sub-{subject}/tracts/mask_sweep/{seed}/{mask_source}/"
+            "sub-{subject}/connectivity/mask_sweep/{seed}/{mask_source}/"
             "sub-{subject}_hemi-{hemi}_label-{seed}_thr-{thr_tag}_desc-{targets}_connectivity_matrix.csv"
         ),
         connectivity_matrix_muscaled=(
-            "sub-{subject}/tracts/mask_sweep/{seed}/{mask_source}/"
+            "sub-{subject}/connectivity/mask_sweep/{seed}/{mask_source}/"
             "sub-{subject}_hemi-{hemi}_label-{seed}_thr-{thr_tag}_desc-{targets}_meas-muscaled_connectivity_matrix.csv"
         ),
         assignments=(
@@ -656,11 +656,11 @@ rule sweep_connectivity_variant:
         seed_voxel_index=rules.sweep_build_seed_nodes.output.seed_voxel_index,
         # Same global main-pipeline SIFT2 mu the baseline sweep matrix uses.
         mu=ancient(
-            "sub-{subject}/qc/sub-{subject}_desc-final_method-mrtrix_sift2_mu.txt"
+            "sub-{subject}/tracts/sub-{subject}_desc-final_method-mrtrix_sift2_mu.txt"
         ),
     output:
         connectivity_matrix=(
-            "sub-{subject}/tracts/mask_sweep/{seed}/{mask_source}/"
+            "sub-{subject}/connectivity/mask_sweep/{seed}/{mask_source}/"
             "sub-{subject}_hemi-{hemi}_label-{seed}_thr-{thr_tag}_desc-{targets}"
             "_meas-{meas}_connectivity_matrix.csv"
         ),
