@@ -197,13 +197,16 @@ Results are written under `<output_dir>` in BIDS-derivatives layout, per subject
 
 ```
 sub-<id>/
-├── anat/     preprocessed T1w, brain mask, SynthSeg, subject-space seeds & target atlas
-├── dwi/      MRtrix FODs, tensor and FA/MD/RD maps, brain mask
-├── tracts/   connectivity matrices (the primary deliverable) and SIFT2 weights
-└── qc/       tractography QC (TDI, endpoints, DEC maps, length histograms), registration QC
+├── anat/          preprocessed T1w, brain mask, SynthSeg, subject-space seeds & target atlases, 5TT
+├── dwi/           MRtrix FODs, tensor and FA/MD/RD maps, brain mask, b0
+├── warps/         subject↔template affine and (inverse) warps
+├── tracts/        tractograms (.tck) plus their SIFT2 weights and µ
+├── connectivity/  the primary deliverable: seed→target connectivity matrices (+ microstructure connectomes)
+└── qc/            qc/tractography/ (TDI, endpoints, DEC, length histograms, tckinfo) and
+                   qc/connectivity/ (streamline→parcel assignments, seed-voxel index, per-matrix QC)
 ```
 
-The primary deliverables are the per-seed connectivity matrices in `tracts/`:
+The primary deliverables are the per-seed connectivity matrices in `connectivity/`:
 
 - `..._label-<seed>_desc-<targets>_connectivity_matrix.csv` — raw SIFT2-weighted
   **seed-voxel × target-parcel** connectivity (plus `meas-muscaled` and, when enabled,

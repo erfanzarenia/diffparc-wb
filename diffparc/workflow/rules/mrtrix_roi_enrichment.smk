@@ -47,7 +47,7 @@ rule roi_tckgen:
             desc="roi", hemi="{hemi}", label="{seed}",
             suffix="tractography.tck", **subj_wildcards
         )),
-        tckinfo="sub-{subject}/qc/sub-{subject}_hemi-{hemi}_label-{seed}_desc-roi_method-mrtrix_tractography_tckinfo.txt",
+        tckinfo="sub-{subject}/qc/tractography/sub-{subject}_hemi-{hemi}_label-{seed}_desc-roi_method-mrtrix_tractography_tckinfo.txt",
     log:
         "logs/sub-{subject}/tracts/sub-{subject}_hemi-{hemi}_label-{seed}_roi_tckgen.log",
     benchmark:
@@ -104,7 +104,7 @@ rule roi_tckgen_merge:
             root=config["tmp_dir"], datatype="tracts", method="mrtrix",
             desc="roi", suffix="tractography_merged.tck", **subj_wildcards
         )),
-        tckinfo="sub-{subject}/qc/sub-{subject}_desc-roi_method-mrtrix_tractography_merged_tckinfo.txt",
+        tckinfo="sub-{subject}/qc/tractography/sub-{subject}_desc-roi_method-mrtrix_tractography_merged_tckinfo.txt",
     log:
         "logs/sub-{subject}/tracts/sub-{subject}_desc-roi_tckgen_merge.log",
     benchmark:
@@ -161,7 +161,7 @@ rule final_tractogram:
             root=root, datatype="tracts", method="mrtrix",
             desc="final", suffix="tractography.tck", **subj_wildcards
         )),
-        tckinfo="sub-{subject}/qc/sub-{subject}_desc-final_method-mrtrix_tractography_tckinfo.txt",
+        tckinfo="sub-{subject}/qc/tractography/sub-{subject}_desc-final_method-mrtrix_tractography_tckinfo.txt",
     log:
         "logs/sub-{subject}/tracts/sub-{subject}_desc-final_tractogram.log",
     benchmark:

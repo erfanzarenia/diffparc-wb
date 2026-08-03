@@ -31,6 +31,11 @@ unless `--no_vol` / `anat_only` is set.
 
 - **Output paths** are built with Snakebids' `bids()` helper, so filenames follow BIDS entity
   conventions (`sub-…_hemi-…_label-…_desc-…_…`).
+- **Output layout** — per subject, files are grouped by kind: `anat/`, `dwi/`, `warps/` (inputs and
+  intermediates); `tracts/` (tractograms plus their SIFT2 weights and µ); `connectivity/` (the
+  seed→target and microstructure matrices — the deliverables); and `qc/`, split into
+  `qc/tractography/` (TDI, endpoints, DEC, lengths, tckinfo) and `qc/connectivity/` (assignments,
+  seed-voxel index, per-matrix QC).
 - **Containers** — every rule that calls a neuroimaging tool declares the `singularity` container;
   run with `--use-singularity`.
 - **Grouping** — most rules use `group: "subj"` so a subject's work can be bundled into one
