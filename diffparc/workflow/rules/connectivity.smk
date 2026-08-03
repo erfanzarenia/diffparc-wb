@@ -138,7 +138,7 @@ rule filter_tractogram:
             **subj_wildcards,
         ),
         tractogram_info=(
-            "sub-{subject}/qc/connectivity/"
+            "sub-{subject}/qc/tractography/"
             "sub-{subject}_hemi-{hemi}_label-{seed}"
             "_desc-seedfiltered_tractography_tckinfo.txt"
         ),
@@ -274,12 +274,12 @@ rule voxelwise_connectivity:
         # meas-muscaled. mu is a single global scalar, so row-normalizing either
         # gives the same fingerprint.
         connectivity_matrix=(
-            "sub-{subject}/tracts/"
+            "sub-{subject}/connectivity/"
             "sub-{subject}_hemi-{hemi}_label-{seed}_desc-{targets}"
             "_connectivity_matrix.csv"
         ),
         connectivity_matrix_muscaled=(
-            "sub-{subject}/tracts/"
+            "sub-{subject}/connectivity/"
             "sub-{subject}_hemi-{hemi}_label-{seed}_desc-{targets}"
             "_meas-muscaled_connectivity_matrix.csv"
         ),
@@ -384,7 +384,7 @@ rule connectivity_variant:
         mu=rules.run_sift2.output.mu,
     output:
         connectivity_matrix=(
-            "sub-{subject}/tracts/"
+            "sub-{subject}/connectivity/"
             "sub-{subject}_hemi-{hemi}_label-{seed}_desc-{targets}"
             "_meas-{meas}_connectivity_matrix.csv"
         ),
@@ -475,7 +475,7 @@ rule fod2dec:
         fod=get_fod_for_tracking,
         mask=get_mask_for_fod,
     output:
-        decmap="sub-{subject}/qc/connectivity/sub-{subject}_desc-fod_decmap.mif",
+        decmap="sub-{subject}/qc/tractography/sub-{subject}_desc-fod_decmap.mif",
     log:
         "logs/sub-{subject}/connectivity/sub-{subject}_fod2dec.log",
     benchmark:
@@ -505,12 +505,12 @@ rule qc_tractogram_wb:
         weights=rules.run_sift2.output.weights,
         template=bids(root=root, datatype="dwi", suffix="mask.mif", **subj_wildcards),
     output:
-        tdi="sub-{subject}/qc/connectivity/sub-{subject}_desc-final_tdi.mif",
-        endpoints="sub-{subject}/qc/connectivity/sub-{subject}_desc-final_endpoints.mif",
-        decmap="sub-{subject}/qc/connectivity/sub-{subject}_desc-final_decmap.mif",
-        subset="sub-{subject}/qc/connectivity/sub-{subject}_desc-final_subset.tck",
-        lengths_csv="sub-{subject}/qc/connectivity/sub-{subject}_desc-final_lengths.csv",
-        lengths_png="sub-{subject}/qc/connectivity/sub-{subject}_desc-final_lengths.png",
+        tdi="sub-{subject}/qc/tractography/sub-{subject}_desc-final_tdi.mif",
+        endpoints="sub-{subject}/qc/tractography/sub-{subject}_desc-final_endpoints.mif",
+        decmap="sub-{subject}/qc/tractography/sub-{subject}_desc-final_decmap.mif",
+        subset="sub-{subject}/qc/tractography/sub-{subject}_desc-final_subset.tck",
+        lengths_csv="sub-{subject}/qc/tractography/sub-{subject}_desc-final_lengths.csv",
+        lengths_png="sub-{subject}/qc/tractography/sub-{subject}_desc-final_lengths.png",
     params:
         script=lambda wc: TRACTOGRAM_QC_SCRIPT,
         n_subsample=QC_NSUBSAMPLE,
@@ -558,27 +558,27 @@ rule qc_tractogram_filtered:
         template=bids(root=root, datatype="dwi", suffix="mask.mif", **subj_wildcards),
     output:
         tdi=(
-            "sub-{subject}/qc/connectivity/"
+            "sub-{subject}/qc/tractography/"
             "sub-{subject}_hemi-{hemi}_label-{seed}_desc-seedfiltered_tdi.mif"
         ),
         endpoints=(
-            "sub-{subject}/qc/connectivity/"
+            "sub-{subject}/qc/tractography/"
             "sub-{subject}_hemi-{hemi}_label-{seed}_desc-seedfiltered_endpoints.mif"
         ),
         decmap=(
-            "sub-{subject}/qc/connectivity/"
+            "sub-{subject}/qc/tractography/"
             "sub-{subject}_hemi-{hemi}_label-{seed}_desc-seedfiltered_decmap.mif"
         ),
         subset=(
-            "sub-{subject}/qc/connectivity/"
+            "sub-{subject}/qc/tractography/"
             "sub-{subject}_hemi-{hemi}_label-{seed}_desc-seedfiltered_subset.tck"
         ),
         lengths_csv=(
-            "sub-{subject}/qc/connectivity/"
+            "sub-{subject}/qc/tractography/"
             "sub-{subject}_hemi-{hemi}_label-{seed}_desc-seedfiltered_lengths.csv"
         ),
         lengths_png=(
-            "sub-{subject}/qc/connectivity/"
+            "sub-{subject}/qc/tractography/"
             "sub-{subject}_hemi-{hemi}_label-{seed}_desc-seedfiltered_lengths.png"
         ),
     params:

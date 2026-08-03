@@ -34,7 +34,7 @@ rule wb_tckgen_chunk:
         tck=temp(
             "sub-{subject}/tracts/sub-{subject}_desc-wb_chunk-{chunk}_method-mrtrix_tractography.tck"
         ),
-        tckinfo="sub-{subject}/qc/sub-{subject}_desc-wb_chunk-{chunk}_method-mrtrix_tractography_tckinfo.txt",
+        tckinfo="sub-{subject}/qc/tractography/sub-{subject}_desc-wb_chunk-{chunk}_method-mrtrix_tractography_tckinfo.txt",
     log:
         "logs/sub-{subject}/tracts/sub-{subject}_desc-wb_chunk-{chunk}_tckgen.log",
     benchmark:
@@ -82,7 +82,7 @@ rule wb_tckgen_merge:
             chunk=WB_CHUNKS
         ),
         tckinfos=lambda wc: expand(
-            "sub-{subject}/qc/sub-{subject}_desc-wb_chunk-{chunk}_method-mrtrix_tractography_tckinfo.txt",
+            "sub-{subject}/qc/tractography/sub-{subject}_desc-wb_chunk-{chunk}_method-mrtrix_tractography_tckinfo.txt",
             subject=wc.subject,
             chunk=WB_CHUNKS
         ),
@@ -91,7 +91,7 @@ rule wb_tckgen_merge:
             root=root, datatype="tracts", method="mrtrix",
             desc="wb", suffix="tractography.tck", **subj_wildcards
         ),
-        tckinfo="sub-{subject}/qc/sub-{subject}_desc-wb_method-mrtrix_tractography_tckinfo.txt",
+        tckinfo="sub-{subject}/qc/tractography/sub-{subject}_desc-wb_method-mrtrix_tractography_tckinfo.txt",
     log:
         "logs/sub-{subject}/tracts/sub-{subject}_desc-wb_tckgen_merge.log",
     benchmark:
