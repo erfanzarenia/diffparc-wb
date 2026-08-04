@@ -9,7 +9,6 @@ license = "MIT"
 python = "^3.8,<3.11"
 snakebids = "^0.7.0"
 snakemake = "^7.0.0"
-boto3 = "^1.26.133"
 
 [tool.poetry.dev-dependencies]
 snakefmt = "^0.6.0"
@@ -24,7 +23,6 @@ build-backend = "poetry.core.masonry.api"
 
 [tool.poetry.scripts]
 diffparc-wb = "diffparc.run:main"
-predict_subj = "predict_subj.run:main"
 
 [tool.poe.tasks]
 quality_check = { shell = "isort diffparc/*.py -c && black diffparc --check && snakefmt diffparc --check" }

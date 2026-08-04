@@ -44,7 +44,7 @@ ENRICH_HEMIS = ENRICH_CFG.get("hemis", ["L", "R"])
 ENRICH_LEVELS = [int(x) for x in ENRICH_CFG.get("levels", [])]
 ENRICH_MAX_LEVEL = max(ENRICH_LEVELS) if ENRICH_LEVELS else 0
 ENRICH_SUBSAMPLE_SEED = int(ENRICH_CFG.get("subsample_seed", 42))
-ENRICH_TARGETS = ENRICH_CFG.get("targets", ["Yeo7TianS3"])
+ENRICH_TARGETS = ENRICH_CFG.get("targets", ["Yeo7TianS4"])
 # Optional: also emit a volume-bias-corrected fingerprint (tck2connectome
 # -scale_invnodevol) per condition, in addition to the uncorrected one.
 ENRICH_VOLNORM = bool(ENRICH_CFG.get("volume_bias_correction", False))

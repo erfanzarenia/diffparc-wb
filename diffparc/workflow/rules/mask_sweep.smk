@@ -15,7 +15,7 @@ SLICE_BLOCK_SCRIPT = os.path.join(workflow.basedir, "scripts", "slice_connectome
 
 SWEEP_SEEDS = ["vtasnc", "snc", "vtapbp", "vtasncpbp"]
 HEMIS = ["L", "R"]
-TARGETS = ["Yeo7TianS3"]
+TARGETS = ["Yeo7TianS4"]
 
 # QC directory layout (ORGANIZATIONAL). The sweep has many combos (variant x
 # threshold x seed x mask_source x hemi), so QC is grouped by threshold and then by

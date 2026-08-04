@@ -1,0 +1,244 @@
+ctx-lh-bankssts
+1 25 100 40 255
+ctx-lh-caudalanteriorcingulate
+2 125 100 160 255
+ctx-lh-caudalmiddlefrontal
+3 100 25 0 255
+ctx-lh-cuneus
+4 220 20 100 255
+ctx-lh-entorhinal
+5 220 20 10 255
+ctx-lh-fusiform
+6 180 220 140 255
+ctx-lh-inferiorparietal
+7 220 60 220 255
+ctx-lh-inferiortemporal
+8 180 40 120 255
+ctx-lh-isthmuscingulate
+9 140 20 140 255
+ctx-lh-lateraloccipital
+10 20 30 140 255
+ctx-lh-lateralorbitofrontal
+11 35 75 50 255
+ctx-lh-lingual
+12 225 140 140 255
+ctx-lh-medialorbitofrontal
+13 200 35 75 255
+ctx-lh-middletemporal
+14 160 100 50 255
+ctx-lh-parahippocampal
+15 20 220 60 255
+ctx-lh-paracentral
+16 60 220 60 255
+ctx-lh-parsopercularis
+17 220 180 140 255
+ctx-lh-parsorbitalis
+18 20 100 50 255
+ctx-lh-parstriangularis
+19 220 60 20 255
+ctx-lh-pericalcarine
+20 120 100 60 255
+ctx-lh-postcentral
+21 220 20 20 255
+ctx-lh-posteriorcingulate
+22 220 180 220 255
+ctx-lh-precentral
+23 60 20 220 255
+ctx-lh-precuneus
+24 160 140 180 255
+ctx-lh-rostralanteriorcingulate
+25 80 20 140 255
+ctx-lh-rostralmiddlefrontal
+26 75 50 125 255
+ctx-lh-superiorfrontal
+27 20 220 160 255
+ctx-lh-superiorparietal
+28 20 180 140 255
+ctx-lh-superiortemporal
+29 140 220 220 255
+ctx-lh-supramarginal
+30 80 160 20 255
+ctx-lh-frontalpole
+31 100 0 100 255
+ctx-lh-temporalpole
+32 70 70 70 255
+ctx-lh-transversetemporal
+33 150 150 200 255
+ctx-lh-insula
+34 255 192 32 255
+ctx-rh-bankssts
+35 25 100 40 255
+ctx-rh-caudalanteriorcingulate
+36 125 100 160 255
+ctx-rh-caudalmiddlefrontal
+37 100 25 0 255
+ctx-rh-cuneus
+38 220 20 100 255
+ctx-rh-entorhinal
+39 220 20 10 255
+ctx-rh-fusiform
+40 180 220 140 255
+ctx-rh-inferiorparietal
+41 220 60 220 255
+ctx-rh-inferiortemporal
+42 180 40 120 255
+ctx-rh-isthmuscingulate
+43 140 20 140 255
+ctx-rh-lateraloccipital
+44 20 30 140 255
+ctx-rh-lateralorbitofrontal
+45 35 75 50 255
+ctx-rh-lingual
+46 225 140 140 255
+ctx-rh-medialorbitofrontal
+47 200 35 75 255
+ctx-rh-middletemporal
+48 160 100 50 255
+ctx-rh-parahippocampal
+49 20 220 60 255
+ctx-rh-paracentral
+50 60 220 60 255
+ctx-rh-parsopercularis
+51 220 180 140 255
+ctx-rh-parsorbitalis
+52 20 100 50 255
+ctx-rh-parstriangularis
+53 220 60 20 255
+ctx-rh-pericalcarine
+54 120 100 60 255
+ctx-rh-postcentral
+55 220 20 20 255
+ctx-rh-posteriorcingulate
+56 220 180 220 255
+ctx-rh-precentral
+57 60 20 220 255
+ctx-rh-precuneus
+58 160 140 180 255
+ctx-rh-rostralanteriorcingulate
+59 80 20 140 255
+ctx-rh-rostralmiddlefrontal
+60 75 50 125 255
+ctx-rh-superiorfrontal
+61 20 220 160 255
+ctx-rh-superiorparietal
+62 20 180 140 255
+ctx-rh-superiortemporal
+63 140 220 220 255
+ctx-rh-supramarginal
+64 80 160 20 255
+ctx-rh-frontalpole
+65 100 0 100 255
+ctx-rh-temporalpole
+66 70 70 70 255
+ctx-rh-transversetemporal
+67 150 150 200 255
+ctx-rh-insula
+68 255 192 32 255
+HIP-head-m-rh
+69 222 18 250 255
+HIP-head-l-rh
+70 242 94 6 255
+HIP-body-m-rh
+71 173 167 157 255
+HIP-body-l-rh
+72 35 45 120 255
+AMY-SM-rh
+73 227 24 19 255
+AMY-CL-rh
+74 200 137 173 255
+THA-DPl-rh
+75 11 12 166 255
+THA-DPm-rh
+76 62 254 102 255
+THA-VPm-rh
+77 51 31 26 255
+THA-VPl-rh
+78 162 200 245 255
+THA-VAi-rh
+79 34 57 116 255
+THA-VAs-rh
+80 7 6 81 255
+THA-DAm-rh
+81 105 115 229 255
+THA-DAl-rh
+82 188 245 178 255
+PUT-VA-rh
+83 172 190 24 255
+PUT-DA-rh
+84 166 71 53 255
+PUT-VP-rh
+85 219 103 199 255
+PUT-DP-rh
+86 191 93 82 255
+CAU-VA-rh
+87 80 18 145 255
+CAU-DA-rh
+88 203 4 200 255
+HIP-tail-rh
+89 244 234 195 255
+lAMY-rh
+90 22 227 242 255
+pGP-rh
+91 171 149 115 255
+aGP-rh
+92 253 218 48 255
+NAc-shell-rh
+93 77 215 112 255
+NAc-core-rh
+94 6 251 243 255
+pCAU-rh
+95 83 203 11 255
+HIP-head-m-lh
+96 210 10 58 255
+HIP-head-l-lh
+97 32 183 2 255
+HIP-body-m-lh
+98 213 37 33 255
+HIP-body-l-lh
+99 75 87 179 255
+AMY-SM-lh
+100 45 114 251 255
+AMY-CL-lh
+101 185 117 200 255
+THA-DPl-lh
+102 165 99 48 255
+THA-DPm-lh
+103 126 204 55 255
+THA-VPm-lh
+104 44 123 166 255
+THA-VPl-lh
+105 98 125 57 255
+THA-VAi-lh
+106 211 224 57 255
+THA-VAs-lh
+107 44 110 221 255
+THA-DAm-lh
+108 99 240 29 255
+THA-DAl-lh
+109 33 234 245 255
+PUT-VA-lh
+110 130 147 214 255
+PUT-DA-lh
+111 244 31 203 255
+PUT-VP-lh
+112 241 135 148 255
+PUT-DP-lh
+113 213 248 54 255
+CAU-VA-lh
+114 152 21 151 255
+CAU-DA-lh
+115 19 147 152 255
+HIP-tail-lh
+116 79 31 178 255
+lAMY-lh
+117 33 71 221 255
+pGP-lh
+118 71 107 95 255
+aGP-lh
+119 23 26 232 255
+NAc-shell-lh
+120 221 202 8 255
+NAc-core-lh
+121 32 239 178 255
+pCAU-lh
+122 97 246 86 255

@@ -9,7 +9,7 @@ likely to change; the file itself is organised into labelled sections and commen
 
 | Key | Purpose |
 |---|---|
-| `singularity.diffparc` | Absolute path to the **primary pipeline container** (`diffparc-deps_with_fsl.sif`), whose home is `resources/apptainer/`. Override per machine with `$DIFFPARC_CONTAINER` instead of editing this. |
+| `singularity.diffparc` | Absolute path to the **primary pipeline container** — `diffparc-deps_with_fsl.sif`, whose home is `resources/apptainer/`. Override per machine with `$DIFFPARC_CONTAINER` instead of editing this. |
 | `tmp_dir` | Scratch directory for temporary tractograms. Override with `$DIFFPARC_TMPDIR`. **Must be a shared filesystem** on a cluster (not node-local), because grouped jobs share these files. |
 
 ## DWI source & preprocessing
@@ -18,7 +18,7 @@ likely to change; the file itself is organised into labelled sections and commen
 |---|---|
 | `in_snakedwi_dir` / `in_prepdwi_dir` | Import already-preprocessed DWI (recommended). Set via the matching CLI flags. |
 | `dwi_biascorrect` | Native-space bias correction in the self-contained path. Keep `False` when snakedwi already did it. |
-| `masking_method` | `b0_BET` or `b0_SyN`: brain masking for the self-contained path. |
+| `masking_method` | `b0_BET` or `b0_SyN` — brain masking for the self-contained path. |
 | `resample_dwi` | Target grid for DWI in T1w space (default: single resample to 1.25 mm). Must match snakedwi. |
 
 ## Registration template
@@ -45,16 +45,41 @@ Bundled seeds (midbrain dopaminergic nuclei, from CIT168):
 
 | Seed | Region |
 |---|---|
-| `vtasncpbp` *(default)* | VTA + SNc + PBP (full dopaminergic midbrain) |
+| `vtasncpbp` *(default)* | VTA + SNc + PBP — full dopaminergic midbrain |
 | `vtasnc` | VTA + SNc |
 | `snc` | SNc only (nigrostriatal) |
 | `vtapbp` | VTA + PBP (mesolimbic) |
 
-**`targets`** is a menu of whole-brain atlases; each entry has a `template_dseg` and an ordered
-`labels` list (the labels become the columns of the connectivity matrix). Bundled options include
-`Yeo7TianS3` *(default)* and `Yeo17TianS3` (Yeo cortical networks + Tian S3 subcortical),
-`Schaefer100TianS3` / `Schaefer500TianS3`, `Yeo7` / `Yeo17`, and several `harvardoxford*` variants.
-To parcellate a seed against a different atlas, set that seed's `targets` accordingly.
+**`targets`** is a menu of whole-brain atlases; each entry has an ordered `labels` list (the labels
+become the columns of the connectivity matrix). A seed is parcellated against **every** atlas in its
+`targets:` list, so listing several produces several matrices from the *same* tractography: the
+expensive tracking and SIFT2 stages are shared, and each extra atlas adds only a cheap warp plus
+`tck2connectome`. Select all, or any subset, by editing that list.
+
+This branch (`feature/target-sweep`) ships four target atlases, each pairing a cortical
+parcellation with the **Tian S4** subcortex (54 parcels, 27 per hemisphere):
+
+| Target | Cortex | Cortex source | Matrix columns |
+|---|---|---|---|
+| `Yeo7TianS4` *(default)* | Yeo 7 networks | template (warped from MNI) | 61 |
+| `Yeo17TianS4` | Yeo 17 networks | template (warped from MNI) | 71 |
+| `Schaefer100TianS4` | Schaefer 100 (17-network) | template (warped from MNI) | 154 |
+| `SynthSegTianS4` | SynthSeg Desikan-Killiany (68) | **native subject space** (reslice, no warp) | 122 |
+
+`SynthSegTianS4` is a **hybrid**: the cortex is a per-subject SynthSeg `--parc` segmentation (68
+Desikan-Killiany parcels) resliced onto the tracking grid with no inter-subject warp, while the Tian
+S4 subcortex is warped from MNI as usual (assembled by
+[`target_synthseg_tian.smk`](../workflow/rules/target_synthseg_tian.smk)). It is modular: the cortical
+columns are pinned by `resources/tpl-MNI152NLin2009cAsym/SynthSeg_Tian/synthseg_cortex_labels.tsv` (so
+matrices stay aligned across subjects, with any absent parcel becoming a zero column), and pointing
+`cortex_lut` / `subcortex_dseg` at other files swaps either half. Because its cortex is anatomical
+(gyral), its columns are **not** comparable to the Yeo/Schaefer functional ones. Also bundled:
+cortex-only `Yeo7` / `Yeo17` and several `harvardoxford*` variants.
+
+> **Tian scale.** These subcortical parcels are Tian **Scale IV (S4)** (54 parcels), despite the
+> upstream files historically carrying an "S3" suffix. The atlases, label lists and target keys were
+> corrected to `...S4` so the `desc-` tag in every output filename reflects the real scale. The
+> unused, incomplete `Schaefer500TianS3` entry is left untouched and flagged inline in the config.
 
 ## Tractography
 
@@ -112,5 +137,5 @@ This branch also defines extra seeds (`snc`, `vtapbp`, …) beyond the core `vta
 
 The `resources` block sets per-rule `threads` / `mem_mb` / `time_min` for the tractography-heavy
 rules. Tune these to your hardware; on a cluster they feed directly into the scheduler's job
-requests. Only rules that scale with tractography parameters are listed; everything else uses
+requests. Only rules that scale with tractography parameters are listed — everything else uses
 sensible built-in defaults.

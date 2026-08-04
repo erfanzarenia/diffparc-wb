@@ -179,20 +179,6 @@ def get_mask_for_fod(wildcards):
     return rules.nii2mif.output.mask
 
 
-# Convert a dseg NIfTI to MRtrix .mif.
-rule dseg_nii2mif:
-    input:
-        "{file}_dseg.nii.gz",
-    output:
-        temp("{file}_dseg.mif"),
-    container:
-        config["singularity"]["diffparc"]
-    group:
-        "subj"
-    shell:
-        "mrconvert {input} {output} -nthreads {threads}"
-
-
 # -----------------------------
 # MSMT-CSD response + FOD (primary FOD path; config fod_algorithm: msmt_csd)
 # -----------------------------
@@ -387,31 +373,9 @@ rule dwi2fod_csd:
 
 
 # -----------------------------
-# Diffusion tensor -> FA/MD (T1w space). Masked dwi_to_tensor supersedes the
-# unmasked dwi2tensor (see ruleorder in microstructure_connectomes.smk); the
-# native-space fit below overrides FA/MD when _native_dti; tensor also feeds RD.
+# Diffusion tensor -> FA/MD in T1w space (overridden by the native-space fit
+# below when _native_dti; also feeds RD in microstructure_connectomes.smk)
 # -----------------------------
-rule dwi2tensor:
-    input:
-        dwi=get_dwi_for_csd,
-    output:
-        tensor=bids(
-            root=root,
-            datatype="dwi",
-            suffix="tensor.mif",
-            **subj_wildcards,
-        ),
-    group:
-        "subj"
-    threads: 8
-    resources:
-        mem_mb=32000,
-    container:
-        config["singularity"]["diffparc"]
-    shell:
-        "dwi2tensor {input.dwi} {output}"
-
-
 rule dwi_to_tensor:
     input:
         dwi=get_dwi_for_csd,
@@ -611,35 +575,3 @@ def get_fod_for_tracking(wildcards):
                 **subj_wildcards,
             ),
         )
-
-
-# Reslice a scalar metric (FA/MD) onto a dseg's voxel grid (reslice-identity).
-rule resample_metric_to_aux_dseg:
-    input:
-        dseg=bids(
-            root=root,
-            datatype="anat",
-            desc="{dseg_method}",
-            suffix="dseg.nii.gz",
-            **subj_wildcards
-        ),
-        metric=bids(
-            root=root,
-            datatype="dwi",
-            suffix="{metric}.nii.gz",
-            **subj_wildcards,
-        ),
-    output:
-        metric=bids(
-            root=root,
-            datatype="dwi",
-            resliced="{dseg_method}",
-            suffix="{metric}.nii.gz",
-            **subj_wildcards,
-        ),
-    group:
-        "subj"
-    container:
-        config["singularity"]["diffparc"]
-    shell:
-        "c3d {input.dseg} {input.metric} -reslice-identity -o {output.metric}"
