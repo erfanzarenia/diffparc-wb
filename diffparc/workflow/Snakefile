@@ -484,6 +484,8 @@ rule all:
     input:
         get_subj_global_conn_sift2(),
         get_connectivity_variant_outputs(),
+        get_mask_sweep_outputs(),
+        get_enrichment_sweep_outputs(),
         get_tractography_qc_outputs(),
         get_microstructure_connectome_outputs()
     default_target: True
