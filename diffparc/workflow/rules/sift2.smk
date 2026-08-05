@@ -16,7 +16,7 @@ rule run_sift2:
             root=root, datatype="tracts", method="mrtrix",
             desc="final", suffix="sift2_weights.txt", **subj_wildcards
         ),
-        mu="sub-{subject}/tracts/sub-{subject}_desc-final_method-mrtrix_sift2_mu.txt",
+        mu="sub-{subject}/qc/sub-{subject}_desc-final_method-mrtrix_sift2_mu.txt",
     log:
         "logs/sub-{subject}/tracts/sub-{subject}_desc-sift2_method-mrtrix.log",
     benchmark:

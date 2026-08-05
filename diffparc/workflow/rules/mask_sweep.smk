@@ -569,7 +569,7 @@ rule sweep_voxelwise_connectivity:
         # ancient() so a touched main SIFT2 fit doesn't force the sweep to re-run,
         # matching how the tractogram/weights are referenced above.
         mu=ancient(
-            "sub-{subject}/tracts/sub-{subject}_desc-final_method-mrtrix_sift2_mu.txt"
+            "sub-{subject}/qc/sub-{subject}_desc-final_method-mrtrix_sift2_mu.txt"
         ),
     output:
         # MAIN deliverable = the RAW SIFT2 weight-sum block (untagged csv); the
@@ -656,7 +656,7 @@ rule sweep_connectivity_variant:
         seed_voxel_index=rules.sweep_build_seed_nodes.output.seed_voxel_index,
         # Same global main-pipeline SIFT2 mu the baseline sweep matrix uses.
         mu=ancient(
-            "sub-{subject}/tracts/sub-{subject}_desc-final_method-mrtrix_sift2_mu.txt"
+            "sub-{subject}/qc/sub-{subject}_desc-final_method-mrtrix_sift2_mu.txt"
         ),
     output:
         connectivity_matrix=(
