@@ -197,9 +197,9 @@ sub-<id>/
 ├── anat/          preprocessed T1w, brain mask, SynthSeg, subject-space seeds & target atlas
 ├── dwi/           MRtrix FODs, tensor and FA/MD/RD maps, brain mask
 ├── warps/         subject↔template affine and (inverse) warps
-├── tracts/        tractograms (.tck) plus their SIFT2 weights and µ
+├── tracts/        tractograms (.tck) plus their SIFT2 weights
 ├── connectivity/  the primary deliverable: seed→target connectivity matrices (+ microstructure connectomes)
-└── qc/            qc/tractography/ (TDI, endpoints, DEC, length histograms, tckinfo) and
+└── qc/            the global SIFT2 µ; qc/tractography/ (TDI, endpoints, DEC, length histograms, tckinfo) and
                    qc/connectivity/ (streamline→parcel assignments, seed-voxel index, per-matrix QC)
 ```
 
