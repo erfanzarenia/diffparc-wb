@@ -278,7 +278,7 @@ def get_mask_sweep_outputs():
     # keep seeds/targets in sync with SWEEP_SEEDS/TARGETS in rules/mask_sweep.smk
     seeds = ["vtasnc", "snc", "vtapbp", "vtasncpbp"]
     hemis = ["L", "R"]
-    targets = ["Yeo7TianS4"]
+    targets = ["Yeo7TianS4", "Yeo17TianS4", "Schaefer100TianS4", "SynthSegTianS4"]
 
     common = dict(
         subject=subjects,

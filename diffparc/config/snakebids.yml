@@ -890,7 +890,6 @@ enrichment_sweep:
     - 1000
     - 5000
     - 10000
-  subsample_seed: 427         # RNG seed for reproducible NESTED random subsampling
   subsample_seed: 78         # RNG seed for reproducible NESTED random subsampling
                              # (lower levels are strict subsets of higher ones:
                              #  1000 ⊂ 3000 ⊂ 5000)
