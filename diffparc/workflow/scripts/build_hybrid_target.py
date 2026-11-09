@@ -3,7 +3,7 @@
 one hybrid target dseg for ``tck2connectome`` (see rules/target_synthseg_tian.smk).
 
 Cortex comes from SynthSeg ``--parc`` (subject-native, already resliced onto the
-node grid); subcortex comes from a template atlas (e.g. Tian S4) warped onto the
+node grid); subcortex comes from a template atlas (e.g. Tian S3) warped onto the
 same node grid. The two are relabelled into a single contiguous ``1..N`` image
 that satisfies the node-builder/​slicer contract (build_voxel_nodes.py /
 slice_connectome_block.py): atlas label ``k`` == column ``k`` of the connectivity

@@ -8,9 +8,9 @@ atlas in it is in that space**. Sensitivity analysis
 
 | Target key(s) | File(s) | Real space | How verified |
 |---|---|---|---|
-| `Yeo7TianS4`, `Yeo17TianS4` | `Yeo_Tian/Yeo{7,17}_TianS4.nii.gz` | **MNI152NLin6Asym** (FreeSurfer-conformed 256³ grid) | Cortex voxels equal `Yeo/Tight_Yeo{7,17}.nii.gz`. Every Tian voxel is the world-coordinate nearest neighbour of `Tian/Tian_Subcortex_S3_7T.nii.gz` + 7 (or + 17). No warp was ever applied. |
-| `SynthSegTianS4` (subcortex half) | `SynthSeg_Tian/TianS4_subcortex_dseg.nii.gz` | **MNI152NLin6Asym** | Its 57,135 Tian voxels are identical to the Tian part of `Yeo7_TianS4`. |
-| `Schaefer100TianS4`, `Schaefer500TianS3` | `Schaefer_Tian/Schaefer2018_*_Tian2020_*.nii.gz` | **MNI152NLin6Asym** (FSL 182×218×182 grid) | Schaefer labels 1..N are unchanged. Tian is N+1..N+54 and comes from `Tian/Tian_S3_Schaefer_Resampled.nii.gz`, which is a world-coordinate nearest-neighbour copy of the 7T S3 file. |
+| `Yeo7TianS3`, `Yeo17TianS3` | `Yeo_Tian/Yeo{7,17}_TianS3.nii.gz` | **MNI152NLin6Asym** (FreeSurfer-conformed 256³ grid) | Cortex voxels equal `Yeo/Tight_Yeo{7,17}.nii.gz`. Every Tian voxel is the world-coordinate nearest neighbour of `Tian/Tian_Subcortex_S3_7T.nii.gz` + 7 (or + 17). No warp was ever applied. |
+| `SynthSegTianS3` (subcortex half) | `SynthSeg_Tian/TianS3_subcortex_dseg.nii.gz` | **MNI152NLin6Asym** | Its 57,135 Tian voxels are identical to the Tian part of `Yeo7_TianS3`. |
+| `Schaefer100TianS3`, `Schaefer500TianS3` | `Schaefer_Tian/Schaefer2018_*_Tian2020_*.nii.gz` | **MNI152NLin6Asym** (FSL 182×218×182 grid) | Schaefer labels 1..N are unchanged. Tian is N+1..N+54 and comes from `Tian/Tian_S3_Schaefer_Resampled.nii.gz`, which is a world-coordinate nearest-neighbour copy of the 7T S3 file. |
 | `Yeo7`, `Yeo17` (cortex only) | `Yeo/Tight_Yeo*.nii.gz` | MNI152NLin6Asym (same Yeo source) | **Not changed on this branch.** No seed uses them. Add `template_space: MNI152NLin6Asym` before you use them. |
 | `harvardoxford*` | `HarvardOxford/*.nii.gz` | Unverified (2009c 193×229×193 grid) | Not checked. No seed uses them. |
 | CIT168 seeds | `CIT168*/` | 2009c | Unchanged on purpose. |
@@ -19,13 +19,12 @@ The production chain treated all of these as 2009c and applied only the subject 
 Inside the brain the NLin6 → 2009c displacement has a median of 1.45 mm (95th percentile 2.67 mm,
 maximum 5.21 mm), and about 0.7 mm at the SNc.
 
-## Naming: "S4" is really Tian 7T Scale III
+## Naming: Tian 7T Scale III
 
-Every `*TianS4*` and `*TianS3*` key, file and `desc-` tag here contains **Tian 7T Scale III** (54
-parcels), voxel-identical to `Tian/Tian_Subcortex_S3_7T.nii.gz`. It is neither 3T S4 nor 7T S4 (62
-parcels). A pure file rename (commit 378d95a) introduced the "S4" names. The keys are kept unchanged
-on purpose, so that output filenames and the sweep and microstructure references stay stable. Read
-"TianS4" in any filename as "Tian 7T S3".
+Every `*TianS3*` key, file and `desc-` tag here contains **Tian 7T Scale III** (54 parcels),
+voxel-identical to `Tian/Tian_Subcortex_S3_7T.nii.gz`. It is neither 3T S4 nor 7T S4 (62 parcels).
+A pure file rename (commit 378d95a) had introduced "S4" names; the original S3 names are restored, so
+outputs produced in between carry `TianS4` for the same atlas.
 
 ## How the pipeline corrects it (single resampling)
 
@@ -57,9 +56,9 @@ python -c "from templateflow import api; print(api.get('MNI152NLin2009cAsym', **
 
 If a target names a `template_space` with no transform configured, the workflow fails at parse time.
 
-Verified on sub-1782 (2026-11-06): the `Yeo7TianS4` dseg from this rule matches
+Verified on sub-1782 (2026-11-06): the `Yeo7TianS3` dseg from this rule matches
 `work/sub-1782/prep/dseg_corrected_onestep.nii.gz` from the sensitivity analysis on every voxel
-(0 of 4,651,920 differ). The Tian parts of `Yeo17TianS4` and `SynthSegTianS4` match it exactly too.
+(0 of 4,651,920 differ). The Tian parts of `Yeo17TianS3` and `SynthSegTianS3` match it exactly too.
 
 ## Re-deriving existing outputs after this change
 
@@ -68,7 +67,7 @@ Only the target side changes. **Do not re-run tracking or SIFT2.**
 Re-run, per subject:
 
 1. `transform_targets_to_subject`, plus `warp_hybrid_subcortex_to_nodegrid` → `build_hybrid_target`
-   for `SynthSegTianS4`, giving new `anat/sub-*_desc-<target>_dseg.nii.gz`.
+   for `SynthSegTianS3`, giving new `anat/sub-*_desc-<target>_dseg.nii.gz`.
 2. `build_seed_nodes` → `voxelwise_connectivity` (`tck2connectome`) → `connectivity_variant`.
 3. `microstructure_connectome` (FA/MD/RD), if enabled.
 4. Mask sweep: `sweep_build_seed_nodes` → `sweep_voxelwise_connectivity` → `sweep_connectivity_variant`.
@@ -85,7 +84,7 @@ Practical notes:
 
 - Dry-run first (`-n`) with `--allowed-rules` limited to the rules above, and confirm that no
   `tckgen`/`tcksift2`/`run_sift2` job appears.
-- Corrected outputs keep the same filenames as the baseline ones (`desc-Yeo7TianS4`). Write them to
+- Corrected outputs keep the same filenames as the baseline ones (`desc-Yeo7TianS3`). Write them to
   a new output root, or move the baseline files aside first, so the two cannot be mixed up.
 - Existing SNIT derivatives use an older layout (`tracts/`, `Yeo7TianS3` names; see the run configs in
   `batch-*/config/`). Re-deriving those needs either the matching pipeline layout or a targeted

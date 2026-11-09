@@ -47,7 +47,7 @@ Given a BIDS dataset with a T1w image and (preprocessed) diffusion data, `diffpa
 
 1. Prepares the T1w image and registers it to the `MNI152NLin2009cAsym` template.
 2. Warps the **seed** priors (e.g. VTA / SNc / PBP from CIT168) and a whole-brain **target**
-   atlas (e.g. Yeo-7 cortical + Tian subcortical; the "TianS4" files are really Tian 7T Scale III) into
+   atlas (e.g. Yeo-7 cortical + Tian 7T Scale III subcortical) into
    subject space. Atlases in MNI152NLin6Asym are mapped through NLin6→2009c→subject in a single
    resampling (see [`ATLAS_SPACES.md`](diffparc/resources/tpl-MNI152NLin2009cAsym/ATLAS_SPACES.md)).
 3. Fits MSMT-CSD fibre orientation distributions and a diffusion tensor (FA/MD/RD).
@@ -217,8 +217,8 @@ commonly adjusted settings:
 
 - **Seeds** (`select_seeds`, `seeds`): which deep-brain ROI(s) to estimate the connectivity for.
 - **Targets** (`targets`, per-seed `targets`): which whole-brain atlas(es) the seed connectivity is
-  estimated to. This branch offers `Yeo7TianS4` (default), `Yeo17TianS4`, `Schaefer100TianS4`, and the
-  native-cortex hybrid `SynthSegTianS4`; all share the tractography, and any combination can be listed.
+  estimated to. This branch offers `Yeo7TianS3` (default), `Yeo17TianS3`, `Schaefer100TianS3`, and the
+  native-cortex hybrid `SynthSegTianS3`; all share the tractography, and any combination can be listed.
   See the [configuration guide](diffparc/config/README.md#seeds-and-targets).
 - **Tractography** (`mrtrix`, `wb_chunk_*`, `roi_enrichment`): step/angle/length, streamline
   counts (per the whole brain), ROI enrichment streamline counts (per voxel).

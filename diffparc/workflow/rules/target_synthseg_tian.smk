@@ -1,5 +1,5 @@
 # target_synthseg_tian.smk -- build a HYBRID target atlas (native SynthSeg cortex +
-# template-warped subcortex, e.g. Tian S4) in subject node-grid space, then hand it
+# template-warped subcortex, e.g. Tian S3) in subject node-grid space, then hand it
 # to the SAME build_seed_nodes -> tck2connectome path as any template target.
 #
 # Nothing here touches tractography, SIFT2 or calibration: the hybrid only changes
@@ -58,7 +58,7 @@ rule reslice_synthseg_cortex_to_nodegrid:
 
 
 rule warp_hybrid_subcortex_to_nodegrid:
-    """Warp the hybrid's subcortical template atlas (e.g. Tian S4) into subject
+    """Warp the hybrid's subcortical template atlas (e.g. Tian S3) into subject
     node-grid space (nearest-neighbour), reusing the existing subject<->template
     transforms plus, if `template_space` is set, the atlas-space -> template
     transform -- one resampling. Same warp as transform_targets_to_subject, on the

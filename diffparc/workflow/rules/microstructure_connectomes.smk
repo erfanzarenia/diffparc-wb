@@ -24,7 +24,7 @@ LABEL_CONNECTOME_SCRIPT = os.path.join(
 )
 
 MICRO_ENABLED = bool(config.get("microstructure_connectomes", False))
-MICRO_TARGETS = config.get("microstructure_connectomes_targets", ["Yeo7TianS4"])
+MICRO_TARGETS = config.get("microstructure_connectomes_targets", ["Yeo7TianS3"])
 MICRO_METRICS = config.get("microstructure_connectomes_metrics", ["FA", "MD", "RD"])
 MICRO_SUBJECTS = sorted(set(inputs.input_zip_lists["T1w"]["subject"]))
 

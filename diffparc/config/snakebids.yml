@@ -183,10 +183,10 @@ seeds:
     probseg_resample: '200%'
     use_synthseg: False
     targets: 
-    #  - Yeo17TianS4
-    #  - Schaefer100TianS4
-    #  - SynthSegTianS4
-       - Yeo7TianS4
+    #  - Yeo17TianS3
+    #  - Schaefer100TianS3
+    #  - SynthSegTianS3
+       - Yeo7TianS3
        
     fwhm_conn: 2mm
     streamline_threshold_percent: 4
@@ -205,7 +205,7 @@ seeds:
     probseg_resample: '200%'
     use_synthseg: False
     targets:
-       - Yeo7TianS4
+       - Yeo7TianS3
     fwhm_conn: 2mm
     streamline_threshold_percent: 4
     seeds_per_vertex:
@@ -217,7 +217,7 @@ seeds:
     probseg_resample: '200%'
     use_synthseg: False
     targets:
-       - Yeo7TianS4
+       - Yeo7TianS3
     fwhm_conn: 2mm
     streamline_threshold_percent: 4
     seeds_per_vertex:
@@ -231,13 +231,13 @@ seeds:
     # Active seed: parcellate against ALL FOUR target atlases. These are selectable --
     # comment out any you don't want; the tractography/SIFT2 stages are shared, so each
     # extra atlas only adds a cheap warp + tck2connectome. All four pair a cortical
-    # parcellation with the Tian S4 subcortex; SynthSegTianS4 uses native SynthSeg
+    # parcellation with the Tian S3 subcortex; SynthSegTianS3 uses native SynthSeg
     # (DKT) cortex instead of a template-warped cortical atlas.
     targets:
-       - Yeo7TianS4
-       - Yeo17TianS4
-       - Schaefer100TianS4
-       - SynthSegTianS4
+       - Yeo7TianS3
+       - Yeo17TianS3
+       - Schaefer100TianS3
+       - SynthSegTianS3
     fwhm_conn: 2mm
     streamline_threshold_percent: 4
     seeds_per_vertex:
@@ -328,12 +328,11 @@ targets:
 
 
 
-  # NAMING: every `*TianS4` / `*TianS3` key and file below holds Tian **7T Scale III**
-  # (54 parcels; identical to Tian/Tian_Subcortex_S3_7T.nii.gz resampled by world
-  # coordinates), NOT Scale IV. The "S4" in key, file and desc- names is historical and
-  # kept only so output filenames stay stable; see ATLAS_SPACES.md.
-  Schaefer100TianS4:
-    template_dseg: resources/tpl-MNI152NLin2009cAsym/Schaefer_Tian/Schaefer2018_100P-17N_Tian2020_S4.nii.gz
+  # NAMING: every `*TianS3` key and file below holds Tian **7T Scale III** (54 parcels;
+  # identical to Tian/Tian_Subcortex_S3_7T.nii.gz resampled by world coordinates). Commit
+  # 378d95a had renamed them to S4 by mistake; see ATLAS_SPACES.md.
+  Schaefer100TianS3:
+    template_dseg: resources/tpl-MNI152NLin2009cAsym/Schaefer_Tian/Schaefer2018_100P-17N_Tian2020_S3.nii.gz
     template_space: MNI152NLin6Asym   # file is in NLin6 (FSL/FreeSurfer grid), not 2009c -- see ATLAS_SPACES.md
     labels:
       - 17Networks_LH_VisCent_ExStr_1
@@ -490,13 +489,12 @@ targets:
       - NAc-shell-lh
       - NAc-core-lh
       - pCAU-lh
-    label_list_txt: resources/tpl-MNI152NLin2009cAsym/Schaefer_Tian/label_list_Schaefer2018_100P-17N_Tian2020-S4.txt
+    label_list_txt: resources/tpl-MNI152NLin2009cAsym/Schaefer_Tian/label_list_Schaefer2018_100P-17N_Tian2020-S3.txt
 
-  # FIXME (pre-existing, UNUSED): broken + mislabelled, left as-is (out of scope).
-  # The NIfTI has 554 labels (500 Schaefer + 54 Tian S4) but only 34 are listed below,
-  # so its connectivity matrix would be truncated/wrong. It is also "S3" in name but
-  # S4 in content, and no seed references it. Complete the labels and rename to
-  # Schaefer500TianS4 before ever selecting it.
+  # FIXME (pre-existing, UNUSED): broken, left as-is (out of scope).
+  # The NIfTI has 554 labels (500 Schaefer + 54 Tian S3) but only 34 are listed below,
+  # so its connectivity matrix would be truncated/wrong, and no seed references it.
+  # Complete the labels before ever selecting it.
   Schaefer500TianS3:
     template_dseg: resources/tpl-MNI152NLin2009cAsym/Schaefer_Tian/Schaefer2018_500P-17N_Tian2020_S3.nii.gz
     template_space: MNI152NLin6Asym   # file is in NLin6 (FSL/FreeSurfer grid), not 2009c -- see ATLAS_SPACES.md
@@ -537,8 +535,8 @@ targets:
       - 17Networks_LH_SomMotA_4
      
      
-  Yeo7TianS4:
-    template_dseg: resources/tpl-MNI152NLin2009cAsym/Yeo_Tian/Yeo7_TianS4.nii.gz
+  Yeo7TianS3:
+    template_dseg: resources/tpl-MNI152NLin2009cAsym/Yeo_Tian/Yeo7_TianS3.nii.gz
     template_space: MNI152NLin6Asym   # file is in NLin6 (FSL/FreeSurfer grid), not 2009c -- see ATLAS_SPACES.md
     labels:
       - Networks_1
@@ -602,10 +600,10 @@ targets:
       - NAc-shell-lh
       - NAc-core-lh
       - pCAU-lh 
-    label_list_txt: resources/tpl-MNI152NLin2009cAsym/Yeo_Tian/label_list_Yeo7_TianS4.txt
+    label_list_txt: resources/tpl-MNI152NLin2009cAsym/Yeo_Tian/label_list_Yeo7_TianS3.txt
 
-  Yeo17TianS4:
-    template_dseg: resources/tpl-MNI152NLin2009cAsym/Yeo_Tian/Yeo17_TianS4.nii.gz
+  Yeo17TianS3:
+    template_dseg: resources/tpl-MNI152NLin2009cAsym/Yeo_Tian/Yeo17_TianS3.nii.gz
     template_space: MNI152NLin6Asym   # file is in NLin6 (FSL/FreeSurfer grid), not 2009c -- see ATLAS_SPACES.md
     labels:
       - Networks_1
@@ -679,22 +677,22 @@ targets:
       - NAc-shell-lh
       - NAc-core-lh
       - pCAU-lh 
-    label_list_txt: resources/tpl-MNI152NLin2009cAsym/Yeo_Tian/label_list_Yeo17_TianS4.txt
+    label_list_txt: resources/tpl-MNI152NLin2009cAsym/Yeo_Tian/label_list_Yeo17_TianS3.txt
 
-  # --- Hybrid target: native SynthSeg (DK) cortex + template Tian S4 subcortex -------
+  # --- Hybrid target: native SynthSeg (DK) cortex + template Tian S3 subcortex -------
   # Assembled in subject space by rules/target_synthseg_tian.smk -- no template cortical
   # atlas is warped. SynthSeg --parc gives 68 Desikan-Killiany cortical parcels (34 per
   # hemisphere) in the subject's own space (reslice only, no inter-subject warp), merged
-  # with the 54-parcel Tian S4 subcortex warped from MNI. Modular: point cortex_lut /
+  # with the 54-parcel Tian S3 subcortex warped from MNI. Modular: point cortex_lut /
   # subcortex_dseg at other atlases to swap either half. Columns = 68 cortex (1..68) then
   # 54 subcortex (69..122), matching the order below. The cortical set is taken from the
   # repo's authoritative resources/synthseg_cortparc_labels.tsv. Adds one SynthSeg --parc
   # run per subject; reuses the existing tractography/SIFT2 like every other target.
-  SynthSegTianS4:
+  SynthSegTianS3:
     kind: hybrid_synthseg_tian
     n_cortex: 68                     # cortical columns (subcortex is offset above this)
     cortex_lut: resources/tpl-MNI152NLin2009cAsym/SynthSeg_Tian/synthseg_cortex_labels.tsv
-    subcortex_dseg: resources/tpl-MNI152NLin2009cAsym/SynthSeg_Tian/TianS4_subcortex_dseg.nii.gz
+    subcortex_dseg: resources/tpl-MNI152NLin2009cAsym/SynthSeg_Tian/TianS3_subcortex_dseg.nii.gz
     template_space: MNI152NLin6Asym   # file is in NLin6 (FSL/FreeSurfer grid), not 2009c -- see ATLAS_SPACES.md
     labels:
       - ctx-lh-bankssts
@@ -819,7 +817,7 @@ targets:
       - NAc-shell-lh
       - NAc-core-lh
       - pCAU-lh
-    label_list_txt: resources/tpl-MNI152NLin2009cAsym/SynthSeg_Tian/label_list_SynthSegTianS4.txt
+    label_list_txt: resources/tpl-MNI152NLin2009cAsym/SynthSeg_Tian/label_list_SynthSegTianS3.txt
 
 
 # ---- Tractography ------------------------------------------------------------
@@ -893,7 +891,7 @@ tractography_qc_seed: 7
 # FA/MD/RD-weighted atlas connectomes from the final tractogram + SIFT2 weights
 microstructure_connectomes: True
 microstructure_connectomes_targets:
-  - Yeo7TianS4
+  - Yeo7TianS3
 microstructure_connectomes_metrics:
   - FA
   - MD
@@ -914,7 +912,7 @@ enrichment_sweep:
                              # (lower levels are strict subsets of higher ones:
                              #  1000 ⊂ 3000 ⊂ 5000)
   targets:                   # atlas(es) for the per-condition voxelwise connectivity fingerprint
-    - Yeo7TianS4
+    - Yeo7TianS3
   volume_bias_correction: True  # also emit a volume-bias-corrected fingerprint
                                  # (tck2connectome -scale_invnodevol) per condition,
                                  # alongside the uncorrected one. Off by default.

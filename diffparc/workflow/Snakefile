@@ -299,7 +299,7 @@ def get_mask_sweep_outputs():
     # keep seeds/targets in sync with SWEEP_SEEDS/TARGETS in rules/mask_sweep.smk
     seeds = ["vtasnc", "snc", "vtapbp", "vtasncpbp"]
     hemis = ["L", "R"]
-    targets = ["Yeo7TianS4", "Yeo17TianS4", "Schaefer100TianS4", "SynthSegTianS4"]
+    targets = ["Yeo7TianS3", "Yeo17TianS3", "Schaefer100TianS3", "SynthSegTianS3"]
 
     common = dict(
         subject=subjects,
@@ -361,7 +361,7 @@ def get_enrichment_sweep_outputs():
     subjects = sorted(set(inputs.input_zip_lists["T1w"]["subject"]))
     seed = es.get("seed", "vtasncpbp")
     hemis = es.get("hemis", ["L", "R"])
-    targets = es.get("targets", ["Yeo7TianS4"])
+    targets = es.get("targets", ["Yeo7TianS3"])
     conds = ["wb"] + [str(int(lv)) for lv in es.get("levels", [])]
 
     # Per-subject metrics summary (mu/cost/counts).
@@ -493,7 +493,7 @@ def get_microstructure_connectome_outputs():
         return []
 
     subjects = sorted(set(inputs.input_zip_lists["T1w"]["subject"]))
-    targets = config.get("microstructure_connectomes_targets", ["Yeo7TianS4"])
+    targets = config.get("microstructure_connectomes_targets", ["Yeo7TianS3"])
     metrics = config.get("microstructure_connectomes_metrics", ["FA", "MD", "RD"])
     return expand(
         "sub-{subject}/connectivity/"
