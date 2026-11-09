@@ -228,16 +228,16 @@ seeds:
     probseg_threshold: 0.05
     probseg_resample: '200%'
     use_synthseg: False
-    # Active seed: parcellate against ALL FOUR target atlases. These are selectable --
-    # comment out any you don't want; the tractography/SIFT2 stages are shared, so each
-    # extra atlas only adds a cheap warp + tck2connectome. All four pair a cortical
-    # parcellation with the Tian S3 subcortex; SynthSegTianS3 uses native SynthSeg
-    # (DKT) cortex instead of a template-warped cortical atlas.
+    # Active seed: parcellate against Yeo7 + Tian and Schaefer100 + Tian. Yeo17TianS3 and
+    # SynthSegTianS3 remain selectable -- the tractography/SIFT2 stages are shared, so each
+    # extra atlas only adds a cheap warp + tck2connectome. All pair a cortical parcellation
+    # with the Tian S3 subcortex; SynthSegTianS3 uses native SynthSeg (DKT) cortex instead
+    # of a template-warped cortical atlas.
     targets:
        - Yeo7TianS3
-       - Yeo17TianS3
        - Schaefer100TianS3
-       - SynthSegTianS3
+    #  - Yeo17TianS3
+    #  - SynthSegTianS3
     fwhm_conn: 2mm
     streamline_threshold_percent: 4
     seeds_per_vertex:
@@ -880,6 +880,9 @@ mask_sweep:
     - snc          # SNc
     - vtapbp       # VTA + PBP
     - vtasncpbp    # SNc + VTA + PBP
+  targets:
+    - Yeo7TianS3
+    - Schaefer100TianS3
   thresholds:
     - 0.2
   mask_sources:

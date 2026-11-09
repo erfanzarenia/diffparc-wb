@@ -217,7 +217,7 @@ commonly adjusted settings:
 
 - **Seeds** (`select_seeds`, `seeds`): which deep-brain ROI(s) to estimate the connectivity for.
 - **Targets** (`targets`, per-seed `targets`): which whole-brain atlas(es) the seed connectivity is
-  estimated to. This branch offers `Yeo7TianS3` (default), `Yeo17TianS3`, `Schaefer100TianS3`, and the
+  estimated to. This branch offers `Yeo7TianS3` and `Schaefer100TianS3` (default), `Yeo17TianS3`, and the
   native-cortex hybrid `SynthSegTianS3`; all share the tractography, and any combination can be listed.
   See the [configuration guide](diffparc/config/README.md#seeds-and-targets).
 - **Tractography** (`mrtrix`, `wb_chunk_*`, `roi_enrichment`): step/angle/length, streamline

@@ -63,7 +63,7 @@ parcellation with the Tian subcortex (**Tian 7T Scale III**: 54 parcels, 27 per 
 |---|---|---|---|
 | `Yeo7TianS3` *(default)* | Yeo 7 networks | template (NLin6, warped via 2009c in one step) | 61 |
 | `Yeo17TianS3` | Yeo 17 networks | template (NLin6, warped via 2009c in one step) | 71 |
-| `Schaefer100TianS3` | Schaefer 100 (17-network) | template (NLin6, warped via 2009c in one step) | 154 |
+| `Schaefer100TianS3` *(default)* | Schaefer 100 (17-network) | template (NLin6, warped via 2009c in one step) | 154 |
 | `SynthSegTianS3` | SynthSeg Desikan-Killiany (68) | **native subject space** (reslice, no warp) | 122 |
 
 `SynthSegTianS3` is a **hybrid**: the cortex is a per-subject SynthSeg `--parc` segmentation (68
@@ -127,6 +127,7 @@ Two additive parameter sweeps, each fully config-gated; see the
 |---|---|
 | `enabled` | Turn the seed-mask sweep on/off. |
 | `seeds` | Seeds to sweep (default `snc`, `vtapbp`, `vtasncpbp`; `vtasnc` also available). |
+| `targets` | Target atlases for the sweep matrices (default `Yeo7TianS3`, `Schaefer100TianS3`). |
 | `thresholds` | Probseg thresholds to sweep (default `0.2` only). |
 | `mask_sources` | Seed-mask sources to compare (e.g. `native`, `brainsteminjected`). |
 
