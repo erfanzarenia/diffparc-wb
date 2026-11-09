@@ -1,5 +1,6 @@
 # prop_seeds_targets.smk -- warp template seed probability maps and target
-# atlases into subject space (via the subject<->template transforms), on an
+# atlases into subject space (via the subject<->template transforms, plus an
+# atlas-space -> template transform for targets not in `template`), on an
 # upsampled reference grid, then binarize/trim each seed mask for tracking.
 
 
@@ -107,7 +108,10 @@ rule transform_seed_to_subject:
 
 
 rule transform_targets_to_subject:
-    # Template targets only (those with a `template_dseg`). Hybrid targets
+    # Template targets only (those with a `template_dseg`). A target whose
+    # `template_space` is not `template` (the NLin6 Yeo/Schaefer + Tian hybrids)
+    # gets the atlas -> template transform appended, so it is still a single
+    # resampling. Hybrid targets
     # (kind: hybrid_synthseg_tian) are built by target_synthseg_tian.smk instead;
     # this constraint keeps the two rules' identical desc-{targets}_dseg outputs
     # from colliding.
@@ -145,6 +149,8 @@ rule transform_targets_to_subject:
             desc="itk",
             **subj_wildcards
         ),
+        # atlas-space -> template transform ([] when the atlas is already in `template`)
+        space_xfm=lambda wildcards: target_template_space_xfm(wildcards.targets),
     output:
         targets=bids(
             root=root,
@@ -168,7 +174,8 @@ rule transform_targets_to_subject:
         "subj"
     threads: 8
     shell:
-        "antsApplyTransforms -d 3 --interpolation NearestNeighbor -i {input.targets} -o {output} -r {input.ref} -t [{input.affine_xfm_itk},1] {input.inv_warp}  &> {log}"
+        # One NN resampling through the whole chain: subject <- template [<- atlas space].
+        "antsApplyTransforms -d 3 --interpolation NearestNeighbor -i {input.targets} -o {output} -r {input.ref} -t [{input.affine_xfm_itk},1] {input.inv_warp} {input.space_xfm}  &> {log}"
 
 
 rule reslice_shapeinject_to_ref:

@@ -57,13 +57,14 @@ expensive tracking and SIFT2 stages are shared, and each extra atlas adds only a
 `tck2connectome`. Select all, or any subset, by editing that list.
 
 This branch (`feature/target-sweep`) ships four target atlases, each pairing a cortical
-parcellation with the **Tian S4** subcortex (54 parcels, 27 per hemisphere):
+parcellation with the Tian subcortex ("S4" in the names, really **Tian 7T Scale III**: 54 parcels,
+27 per hemisphere):
 
 | Target | Cortex | Cortex source | Matrix columns |
 |---|---|---|---|
-| `Yeo7TianS4` *(default)* | Yeo 7 networks | template (warped from MNI) | 61 |
-| `Yeo17TianS4` | Yeo 17 networks | template (warped from MNI) | 71 |
-| `Schaefer100TianS4` | Schaefer 100 (17-network) | template (warped from MNI) | 154 |
+| `Yeo7TianS4` *(default)* | Yeo 7 networks | template (NLin6, warped via 2009c in one step) | 61 |
+| `Yeo17TianS4` | Yeo 17 networks | template (NLin6, warped via 2009c in one step) | 71 |
+| `Schaefer100TianS4` | Schaefer 100 (17-network) | template (NLin6, warped via 2009c in one step) | 154 |
 | `SynthSegTianS4` | SynthSeg Desikan-Killiany (68) | **native subject space** (reslice, no warp) | 122 |
 
 `SynthSegTianS4` is a **hybrid**: the cortex is a per-subject SynthSeg `--parc` segmentation (68
@@ -76,10 +77,20 @@ matrices stay aligned across subjects, with any absent parcel becoming a zero co
 (gyral), its columns are **not** comparable to the Yeo/Schaefer functional ones. Also bundled:
 cortex-only `Yeo7` / `Yeo17` and several `harvardoxford*` variants.
 
-> **Tian scale.** These subcortical parcels are Tian **Scale IV (S4)** (54 parcels), despite the
-> upstream files historically carrying an "S3" suffix. The atlases, label lists and target keys were
-> corrected to `...S4` so the `desc-` tag in every output filename reflects the real scale. The
-> unused, incomplete `Schaefer500TianS3` entry is left untouched and flagged inline in the config.
+> **Tian scale.** Despite the `...TianS4` names, these subcortical parcels are Tian **7T Scale III**
+> (54 parcels). They are voxel-identical to `Tian/Tian_Subcortex_S3_7T.nii.gz`, not 3T S4 or 7T S4
+> (62 parcels). The S3→S4 rename in commit 378d95a was a mistake. The keys are kept unchanged only so
+> that output filenames stay stable. Read "TianS4" in a `desc-` tag as "Tian 7T S3". The unused,
+> incomplete `Schaefer500TianS3` entry is left untouched and flagged inline in the config.
+
+> **Atlas space.** The Yeo/Schaefer + Tian hybrids (and the SynthSeg hybrid's subcortex) are in
+> **MNI152NLin6Asym**, not the `MNI152NLin2009cAsym` registration template. Each carries
+> `template_space: MNI152NLin6Asym`, so the target warp chains the TemplateFlow NLin6→2009c
+> transform (`template_space_xfms`) with the subject↔2009c warp in **one** nearest-neighbour
+> resampling. That transform file is git-ignored and must be fetched. See
+> [`ATLAS_SPACES.md`](../resources/tpl-MNI152NLin2009cAsym/ATLAS_SPACES.md) for the evidence, how
+> to get the transform, and which steps to re-run (target warp and `tck2connectome` onward, never
+> tracking or SIFT2).
 
 ## Tractography
 

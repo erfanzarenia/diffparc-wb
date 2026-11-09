@@ -142,6 +142,17 @@ template_t1w: resources/tpl-MNI152NLin2009cAsym/tpl-MNI152NLin2009cAsym_res-01_T
 template_mask: resources/tpl-MNI152NLin2009cAsym/tpl-MNI152NLin2009cAsym_res-01_desc-brain_mask.nii.gz
 template_b0: resources/tpl-MNI152NLin2009cAsym/tpl-MNI152NLin2009cAsym_res-dwi_desc-fromhcp_b0.nii.gz
 
+# Atlas-space -> `template` transforms (ANTs, TemplateFlow `mode-image` convention).
+# A target whose `template_space` differs from `template` is mapped into subject space
+# by ONE antsApplyTransforms call that chains [subject<-template] with
+# [template<-template_space]: a single nearest-neighbour resampling. Do NOT pre-warp an
+# atlas into a 2009c file and resample it again -- that two-step route adds its own
+# resampling artefact (pallidum +4.17 pp vs +2.16 pp one-step; see
+# resources/tpl-MNI152NLin2009cAsym/ATLAS_SPACES.md). The .h5 is not tracked in git
+# (~200 MB); fetch it as described in ATLAS_SPACES.md. Repo-relative or absolute path.
+template_space_xfms:
+  MNI152NLin6Asym: resources/tpl-MNI152NLin2009cAsym/xfm/tpl-MNI152NLin2009cAsym_from-MNI152NLin6Asym_mode-image_xfm.h5
+
 # ---- ANTs registration -------------------------------------------------------
 ants:
   dim: 3
@@ -317,8 +328,13 @@ targets:
 
 
 
+  # NAMING: every `*TianS4` / `*TianS3` key and file below holds Tian **7T Scale III**
+  # (54 parcels; identical to Tian/Tian_Subcortex_S3_7T.nii.gz resampled by world
+  # coordinates), NOT Scale IV. The "S4" in key, file and desc- names is historical and
+  # kept only so output filenames stay stable; see ATLAS_SPACES.md.
   Schaefer100TianS4:
     template_dseg: resources/tpl-MNI152NLin2009cAsym/Schaefer_Tian/Schaefer2018_100P-17N_Tian2020_S4.nii.gz
+    template_space: MNI152NLin6Asym   # file is in NLin6 (FSL/FreeSurfer grid), not 2009c -- see ATLAS_SPACES.md
     labels:
       - 17Networks_LH_VisCent_ExStr_1
       - 17Networks_LH_VisCent_ExStr_2
@@ -483,6 +499,7 @@ targets:
   # Schaefer500TianS4 before ever selecting it.
   Schaefer500TianS3:
     template_dseg: resources/tpl-MNI152NLin2009cAsym/Schaefer_Tian/Schaefer2018_500P-17N_Tian2020_S3.nii.gz
+    template_space: MNI152NLin6Asym   # file is in NLin6 (FSL/FreeSurfer grid), not 2009c -- see ATLAS_SPACES.md
     labels:
       - 17Networks_LH_VisCent_Striate_1
       - 17Networks_LH_VisCent_Striate_2
@@ -522,6 +539,7 @@ targets:
      
   Yeo7TianS4:
     template_dseg: resources/tpl-MNI152NLin2009cAsym/Yeo_Tian/Yeo7_TianS4.nii.gz
+    template_space: MNI152NLin6Asym   # file is in NLin6 (FSL/FreeSurfer grid), not 2009c -- see ATLAS_SPACES.md
     labels:
       - Networks_1
       - Networks_2
@@ -588,6 +606,7 @@ targets:
 
   Yeo17TianS4:
     template_dseg: resources/tpl-MNI152NLin2009cAsym/Yeo_Tian/Yeo17_TianS4.nii.gz
+    template_space: MNI152NLin6Asym   # file is in NLin6 (FSL/FreeSurfer grid), not 2009c -- see ATLAS_SPACES.md
     labels:
       - Networks_1
       - Networks_2
@@ -676,6 +695,7 @@ targets:
     n_cortex: 68                     # cortical columns (subcortex is offset above this)
     cortex_lut: resources/tpl-MNI152NLin2009cAsym/SynthSeg_Tian/synthseg_cortex_labels.tsv
     subcortex_dseg: resources/tpl-MNI152NLin2009cAsym/SynthSeg_Tian/TianS4_subcortex_dseg.nii.gz
+    template_space: MNI152NLin6Asym   # file is in NLin6 (FSL/FreeSurfer grid), not 2009c -- see ATLAS_SPACES.md
     labels:
       - ctx-lh-bankssts
       - ctx-lh-caudalanteriorcingulate

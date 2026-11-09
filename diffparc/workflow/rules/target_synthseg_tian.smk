@@ -60,7 +60,9 @@ rule reslice_synthseg_cortex_to_nodegrid:
 rule warp_hybrid_subcortex_to_nodegrid:
     """Warp the hybrid's subcortical template atlas (e.g. Tian S4) into subject
     node-grid space (nearest-neighbour), reusing the existing subject<->template
-    transforms. Same warp as transform_targets_to_subject, on the subcortex-only dseg."""
+    transforms plus, if `template_space` is set, the atlas-space -> template
+    transform -- one resampling. Same warp as transform_targets_to_subject, on the
+    subcortex-only dseg."""
     wildcard_constraints:
         targets=HYBRID_TARGETS_RE,
     input:
@@ -93,6 +95,8 @@ rule warp_hybrid_subcortex_to_nodegrid:
             desc="itk",
             **subj_wildcards,
         ),
+        # atlas-space -> template transform ([] when the subcortex is already in `template`)
+        space_xfm=lambda wildcards: target_template_space_xfm(wildcards.targets),
     output:
         subcortex=temp(
             bids(
@@ -113,7 +117,8 @@ rule warp_hybrid_subcortex_to_nodegrid:
     threads: 8
     shell:
         "antsApplyTransforms -d 3 --interpolation NearestNeighbor -i {input.subcortex} "
-        "-o {output.subcortex} -r {input.ref} -t [{input.affine_xfm_itk},1] {input.inv_warp}"
+        "-o {output.subcortex} -r {input.ref} -t [{input.affine_xfm_itk},1] {input.inv_warp} "
+        "{input.space_xfm}"
 
 
 rule build_hybrid_target:

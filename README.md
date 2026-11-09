@@ -47,7 +47,9 @@ Given a BIDS dataset with a T1w image and (preprocessed) diffusion data, `diffpa
 
 1. Prepares the T1w image and registers it to the `MNI152NLin2009cAsym` template.
 2. Warps the **seed** priors (e.g. VTA / SNc / PBP from CIT168) and a whole-brain **target**
-   atlas (e.g. Yeo-7 cortical + Tian S4 subcortical) into subject space.
+   atlas (e.g. Yeo-7 cortical + Tian subcortical; the "TianS4" files are really Tian 7T Scale III) into
+   subject space. Atlases in MNI152NLin6Asym are mapped through NLin6→2009c→subject in a single
+   resampling (see [`ATLAS_SPACES.md`](diffparc/resources/tpl-MNI152NLin2009cAsym/ATLAS_SPACES.md)).
 3. Fits MSMT-CSD fibre orientation distributions and a diffusion tensor (FA/MD/RD).
 4. Runs **whole-brain, ACT-constrained tractography**, enriched with **ROI-targeted**
    tracking seeded in the deep-brain ROI.

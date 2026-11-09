@@ -17,3 +17,5 @@ __pycache__
 diffparc/.DS_Store
 diffparc/resources/.DS_Store
 .DS_Store
+# TemplateFlow atlas-space transforms (~200 MB): fetched, not tracked (see ATLAS_SPACES.md)
+diffparc/resources/tpl-MNI152NLin2009cAsym/xfm/*.h5

@@ -198,6 +198,27 @@ TEMPLATE_TARGETS_RE = _targets_regex(TEMPLATE_TARGET_NAMES)
 HYBRID_TARGETS_RE = _targets_regex(HYBRID_TARGET_NAMES)
 
 
+# Atlas space of a target's template-side file (`template_dseg`, or a hybrid's
+# `subcortex_dseg`). Defaults to `template`. When it differs, the atlas -> template
+# transform from `template_space_xfms` is appended to the subject <- template chain so
+# the atlas reaches subject space in ONE resampling (never pre-warp + resample again).
+def target_template_space_xfm(target):
+    space = config["targets"][target].get("template_space", config["template"])
+    if space == config["template"]:
+        return []
+    xfm = config.get("template_space_xfms", {}).get(space)
+    if xfm is None:
+        raise ValueError(
+            f"target '{target}' has template_space '{space}', but template_space_xfms "
+            f"has no transform from {space} to {config['template']}"
+        )
+    return [_os.path.join(workflow.basedir, "..", xfm)]  # absolute xfm paths pass through
+
+
+for _t in TEMPLATE_TARGET_NAMES + HYBRID_TARGET_NAMES:
+    target_template_space_xfm(_t)  # fail at parse time on a missing transform
+
+
 # -----------------------------
 # Final target helpers
 # -----------------------------
