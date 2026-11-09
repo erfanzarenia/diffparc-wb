@@ -376,7 +376,7 @@ rule enrich_roi_tckgen_max:
         wm_fod=get_fod_for_tracking,
         mask=bids(root=root, datatype="dwi", suffix="mask.mif", **subj_wildcards),
         seed_mask=rules.enrich_select_max_volume_mask.output.mask,
-        five_tt=rules.act_5ttgen.output.five_tt,
+        five_tt=ACT_5TT,
     params:
         spv=lambda wc: ENRICH_MAX_LEVEL,
         step=lambda wc: config.get("mrtrix", {}).get("step", 0.35),
@@ -577,7 +577,7 @@ rule enrich_sift2:
     input:
         tck=enrich_cond_tck,
         wm_fod=get_fod_for_tracking,
-        five_tt=rules.act_5ttgen.output.five_tt,
+        five_tt=ACT_5TT,
     output:
         weights=_T_COND + "/sub-{subject}_label-{seed}_cond-{cond}_desc-enrich_sift2_weights.txt",
         mu=_Q_SIFT2 + "/sub-{subject}_label-{seed}_cond-{cond}_sift2_mu.txt",

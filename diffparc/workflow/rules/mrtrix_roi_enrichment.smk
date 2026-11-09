@@ -29,7 +29,7 @@ rule roi_tckgen:
             root=root, **subj_wildcards, hemi="{hemi}", label="{seed}",
             datatype="anat", suffix="mask.nii.gz"
         ),
-        five_tt=rules.act_5ttgen.output.five_tt,
+        five_tt=ACT_5TT,
     params:
         spv=lambda wc: config["roi_enrichment"]["seeds_per_voxel"],
         step=lambda wc: config.get("mrtrix", {}).get("step", 0.35),

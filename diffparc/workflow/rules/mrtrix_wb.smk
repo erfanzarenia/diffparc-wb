@@ -21,7 +21,7 @@ rule wb_tckgen_chunk:
     input:
         wm_fod=get_fod_for_tracking,
         mask=bids(root=root, datatype="dwi", suffix="mask.mif", **subj_wildcards),
-        five_tt=rules.act_5ttgen.output.five_tt,
+        five_tt=ACT_5TT,
     params:
         step=lambda wc: config.get("mrtrix", {}).get("step", 0.35),
         angle=lambda wc: config.get("mrtrix", {}).get("angle", 45),

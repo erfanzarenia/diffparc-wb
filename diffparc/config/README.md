@@ -99,6 +99,7 @@ cortex-only `Yeo7` / `Yeo17` and several `harvardoxford*` variants.
 | `mrtrix` | iFOD2 parameters: `step`, `angle`, `minlength`, `maxlength`, `cutoff`, and `target_search_radius` (mm) for endpoint→parcel assignment. |
 | `wb_chunk_count`, `wb_chunk_streamlines` | Whole-brain tractography is generated in this many chunks (distinct RNG seeds) of this many streamlines each, then merged. |
 | `mrtrix_rng_seed` | Base RNG seed for reproducibility. |
+| `act.gp_as_wm` | If `True`, track and fit SIFT2 on a 5TT in which the FIRST pallidum is white matter instead of sub-cortical grey matter (its FIRST partial volume moves from sGM to WM; FIRST is re-run with the `5ttgen fsl` settings and must reproduce the original sGM). Default `False`. |
 | `roi_enrichment` | `enabled` and `seeds_per_voxel` for ROI-targeted enrichment tracking. |
 
 ## Connectivity outputs

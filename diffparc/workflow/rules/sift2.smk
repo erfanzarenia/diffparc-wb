@@ -10,7 +10,7 @@ rule run_sift2:
     input:
         tck=rules.final_tractogram.output.tck,
         wm_fod=get_fod_for_tracking,
-        five_tt=rules.act_5ttgen.output.five_tt,
+        five_tt=ACT_5TT,
     output:
         weights=bids(
             root=root, datatype="tracts", method="mrtrix",

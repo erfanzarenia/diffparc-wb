@@ -832,6 +832,11 @@ mrtrix:
   cutoff: 0.06
   target_search_radius: 4   # mm; radial search to assign target-side endpoints to a parcel
 mrtrix_rng_seed: 7
+# ACT tissue model. gp_as_wm: move the FIRST pallidum from sub-cortical GM to WM in the 5TT used
+# for tracking and SIFT2, so streamlines are not stopped by the GP (wb_prep.smk: act_first_pv,
+# act_5tt_gp_as_wm). The pallidum's FIRST partial volume moves to WM; other tissues are unchanged.
+act:
+  gp_as_wm: False
 wb_chunk_count: 2
 wb_chunk_streamlines: 50000000
 roi_enrichment:

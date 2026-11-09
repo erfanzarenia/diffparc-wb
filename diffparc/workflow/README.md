@@ -20,7 +20,7 @@ unless `--no_vol` / `anat_only` is set.
 | Brain masking | `masking_bet_from-b0.smk`, `masking_b0_to_template.smk` | DWI brain mask via BET-on-b0 or registration to the template. |
 | DWI → T1w | `reg_dwi_to_t1.smk` | Import preprocessed DWI, or rigidly register + resample the native DWI onto the T1w grid. |
 | MRtrix modelling | `mrtrix.smk` | DWI→MIF, MSMT-CSD response/FOD (+ mtnormalise), CSD fallback, tensor → FA/MD/RD. |
-| ACT priors | `wb_prep.smk` | 5TT image and seed-mask preparation for anatomically-constrained tracking. |
+| ACT priors | `wb_prep.smk` | 5TT image (optionally with the pallidum as WM, `act.gp_as_wm`) and seed-mask preparation for anatomically-constrained tracking. |
 | Whole-brain tractography | `mrtrix_wb.smk` | Chunked, ACT-constrained iFOD2 whole-brain tracking, merged. |
 | ROI enrichment | `mrtrix_roi_enrichment.smk` | ROI-seeded enrichment tracking; merged with the whole-brain tractogram into the final tractogram. |
 | SIFT2 | `sift2.smk` | SIFT2 weighting of the final tractogram (+ global µ). |
