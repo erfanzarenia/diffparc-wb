@@ -182,6 +182,116 @@ rule filter_tractogram:
 
 
 # -----------------------------
+# Optional: exclude seed streamlines entering the VP thalamus, after SIFT2 (config vp_exclusion)
+# -----------------------------
+VP_EXCLUSION = config.get("vp_exclusion", {}).get("enabled", False)
+VP_EXCLUSION_ATLAS = config.get("vp_exclusion", {}).get("atlas", "Yeo7TianS3")
+VP_MASK = "sub-{subject}/anat/sub-{subject}_label-VP_desc-thalfill_mask.nii.gz"
+
+
+rule build_vp_exclusion_mask:
+    """
+    VP thalamus mask on the 5TT grid: FIRST thalamus (partial volume > 0) filled with the
+    nearest Tian thalamic label of its hemisphere from the `vp_exclusion.atlas` target;
+    voxels labelled THA-VPm/THA-VPl. See scripts/build_vp_mask.py.
+    """
+    input:
+        thal_pv=first_pv(["Thal"]),
+        dseg=f"sub-{{subject}}/anat/sub-{{subject}}_desc-{VP_EXCLUSION_ATLAS}_dseg.nii.gz",
+    output:
+        mask=VP_MASK,
+    params:
+        script=os.path.join(workflow.basedir, "scripts", "build_vp_mask.py"),
+        labels=",".join(config["targets"][VP_EXCLUSION_ATLAS]["labels"]),
+    log:
+        "logs/sub-{subject}/connectivity/sub-{subject}_build_vp_exclusion_mask.log",
+    threads: 1
+    resources:
+        mem_mb=lambda wc: res("build_vp_exclusion_mask", "mem_mb", 8000),
+        time=lambda wc: res("build_vp_exclusion_mask", "time_min", 15)
+    container:
+        config["singularity"]["diffparc"]
+    group:
+        "subj"
+    shell:
+        r"""
+        set -euo pipefail
+        mkdir -p "$(dirname "{log}")"
+        python "{params.script}" --thal-pv-l "{input.thal_pv[0]}" --thal-pv-r "{input.thal_pv[1]}" \
+          --dseg "{input.dseg}" --labels "{params.labels}" --out "{output.mask}" &> "{log}"
+        """
+
+
+rule exclude_vp_seedfiltered:
+    """
+    Drop seed-filtered streamlines with any point in the VP mask. Runs after SIFT2 on the
+    seed-filtered tractogram: kept streamlines keep their original SIFT2 weights (no refit).
+    """
+    input:
+        tractogram=rules.filter_tractogram.output.tractogram,
+        sift2_weights=rules.filter_tractogram.output.sift2_weights,
+        vp_mask=VP_MASK,
+    output:
+        tractogram=bids(
+            root=root,
+            datatype="tracts",
+            method="mrtrix",
+            desc="seedfilteredvpexcl",
+            hemi="{hemi}",
+            label="{seed}",
+            suffix="tractography.tck",
+            **subj_wildcards,
+        ),
+        sift2_weights=bids(
+            root=root,
+            datatype="tracts",
+            method="mrtrix",
+            desc="seedfilteredvpexcl",
+            hemi="{hemi}",
+            label="{seed}",
+            suffix="sift2_weights.txt",
+            **subj_wildcards,
+        ),
+        tractogram_info=(
+            "sub-{subject}/qc/tractography/"
+            "sub-{subject}_hemi-{hemi}_label-{seed}"
+            "_desc-seedfilteredvpexcl_tractography_tckinfo.txt"
+        ),
+    log:
+        (
+            "logs/sub-{subject}/connectivity/"
+            "sub-{subject}_hemi-{hemi}_label-{seed}_exclude_vp_seedfiltered.log"
+        ),
+    threads: lambda wc: res("filter_tractogram", "threads", 2)
+    resources:
+        mem_mb=lambda wc: res("filter_tractogram", "mem_mb", 16000),
+        time=lambda wc: res("filter_tractogram", "time_min", 30)
+    group:
+        "subj"
+    container:
+        config["singularity"]["diffparc"]
+    shell:
+        r"""
+        set -euo pipefail
+        mkdir -p "$(dirname "{output.tractogram_info}")" "$(dirname "{log}")"
+
+        tckedit "{input.tractogram}" "{output.tractogram}" \
+          -exclude "{input.vp_mask}" \
+          -tck_weights_in "{input.sift2_weights}" \
+          -tck_weights_out "{output.sift2_weights}" \
+          &> "{log}"
+
+        tckinfo "{output.tractogram}" > "{output.tractogram_info}" 2>> "{log}"
+        """
+
+
+# Seed-filtered tractogram + weights used for connectivity and QC.
+SEEDFILTERED = (
+    rules.exclude_vp_seedfiltered.output if VP_EXCLUSION else rules.filter_tractogram.output
+)
+
+
+# -----------------------------
 # Per-voxel node parcellation (seed voxels + offset target atlas)
 # -----------------------------
 rule build_seed_nodes:
@@ -263,8 +373,8 @@ rule voxelwise_connectivity:
     stop in unlabelled white matter and must search outward to reach a parcel.
     """
     input:
-        tractogram=rules.filter_tractogram.output.tractogram,
-        sift2_weights=rules.filter_tractogram.output.sift2_weights,
+        tractogram=SEEDFILTERED.tractogram,
+        sift2_weights=SEEDFILTERED.sift2_weights,
         nodes=rules.build_seed_nodes.output.nodes,
         seed_voxel_index=rules.build_seed_nodes.output.seed_voxel_index,
         mu=rules.run_sift2.output.mu,
@@ -377,8 +487,8 @@ rule connectivity_variant:
     wildcard_constraints:
         meas=CONN_VARIANT_MEAS_CONSTRAINT,
     input:
-        tractogram=rules.filter_tractogram.output.tractogram,
-        sift2_weights=rules.filter_tractogram.output.sift2_weights,
+        tractogram=SEEDFILTERED.tractogram,
+        sift2_weights=SEEDFILTERED.sift2_weights,
         nodes=rules.build_seed_nodes.output.nodes,
         seed_voxel_index=rules.build_seed_nodes.output.seed_voxel_index,
         mu=rules.run_sift2.output.mu,
@@ -553,8 +663,8 @@ rule qc_tractogram_wb:
 rule qc_tractogram_filtered:
     """Visual QC for the final seed-filtered tractogram + its SIFT2 weights."""
     input:
-        tck=rules.filter_tractogram.output.tractogram,
-        weights=rules.filter_tractogram.output.sift2_weights,
+        tck=SEEDFILTERED.tractogram,
+        weights=SEEDFILTERED.sift2_weights,
         template=bids(root=root, datatype="dwi", suffix="mask.mif", **subj_wildcards),
     output:
         tdi=(

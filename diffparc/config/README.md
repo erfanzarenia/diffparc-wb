@@ -114,6 +114,11 @@ are always produced):
 | `volume_length_bias_corrected` | both |
 | `volume_length_bias_corrected_mu_scaled` | both, then × SIFT2 µ |
 
+`vp_exclusion` (`enabled`, `atlas`): if enabled, seed streamlines with any point in the ventral
+posterior thalamus are dropped from the main and mask-sweep connectivity **after** SIFT2; kept
+streamlines keep their original weights (no refit). VP is Tian THA-VPm/VPl from `atlas`, filled out to
+the whole FIRST thalamus by nearest thalamic label so the unlabelled rim is covered. Default off.
+
 `microstructure_connectomes` (+ `_targets`, `_metrics`) enables FA/MD/RD-weighted atlas
 connectomes. `tractography_qc` (+ `_nsubsample`, `_seed`) controls the visual QC outputs.
 

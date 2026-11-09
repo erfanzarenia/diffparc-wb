@@ -877,6 +877,15 @@ connectivity_variants:
   volume_length_bias_corrected: true
   volume_length_bias_corrected_mu_scaled: true
 
+# Post-SIFT2 exclusion of seed streamlines that enter the ventral posterior (VP) thalamus
+# (connectivity.smk: build_vp_exclusion_mask, exclude_vp_seedfiltered; mask_sweep.smk:
+# sweep_exclude_vp). SIFT2 is fitted on the unmodified tractogram; seed-filtered streamlines with
+# any point in VP are dropped and the rest keep their weights (no refit). VP = Tian THA-VPm/VPl
+# of `atlas`, filled out to the FIRST thalamus (partial volume > 0) by nearest thalamic label.
+vp_exclusion:
+  enabled: False
+  atlas: Yeo7TianS3
+
 # ---- Experiment: seed-mask sweep (rules/mask_sweep.smk) -----------------------
 # Extra seed masks, thresholded at 0.2 only (no dilation), filtered from the same tractogram.
 mask_sweep:

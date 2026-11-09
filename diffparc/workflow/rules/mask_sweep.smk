@@ -507,6 +507,56 @@ rule sweep_filter_tractogram:
         tckinfo "{output.tractogram}" > "{output.tckinfo}" 2>> "{log}"
         """
 
+
+# Optional VP exclusion after SIFT2 (config vp_exclusion; mask from connectivity.smk),
+# same as the main pipeline: kept streamlines keep their original SIFT2 weights.
+rule sweep_exclude_vp:
+    input:
+        tractogram=rules.sweep_filter_tractogram.output.tractogram,
+        sift2_weights=rules.sweep_filter_tractogram.output.sift2_weights,
+        vp_mask=VP_MASK,
+    output:
+        tractogram=temp(
+            config["tmp_dir"]
+            + "/sub-{subject}/tracts/mask_sweep/{seed}/{mask_source}/"
+            + "sub-{subject}_hemi-{hemi}_label-{seed}_thr-{thr_tag}_desc-seedfilteredvpexcl_tractography.tck"
+        ),
+        sift2_weights=temp(
+            config["tmp_dir"]
+            + "/sub-{subject}/tracts/mask_sweep/{seed}/{mask_source}/"
+            + "sub-{subject}_hemi-{hemi}_label-{seed}_thr-{thr_tag}_desc-seedfilteredvpexcl_sift2_weights.txt"
+        ),
+        tckinfo=(
+            _MS_QC_TRACT + "/"
+            "sub-{subject}_hemi-{hemi}_label-{seed}_thr-{thr_tag}_desc-seedfilteredvpexcl_method-mrtrix_tractography_tckinfo.txt"
+        ),
+    log:
+        "logs/sub-{subject}/mask_sweep/{seed}/{mask_source}/sub-{subject}_hemi-{hemi}_label-{seed}_thr-{thr_tag}_exclude_vp.log",
+    threads: lambda wc: config.get("mrtrix", {}).get("filter_threads", 2)
+    resources:
+        mem_mb=8000,
+        time=90
+    container:
+        config["singularity"]["diffparc"]
+    shell:
+        r"""
+        set -euo pipefail
+        mkdir -p "$(dirname "{output.tractogram}")" "$(dirname "{output.tckinfo}")" "$(dirname "{log}")"
+
+        tckedit "{input.tractogram}" "{output.tractogram}" \
+          -exclude "{input.vp_mask}" \
+          -tck_weights_in "{input.sift2_weights}" \
+          -tck_weights_out "{output.sift2_weights}" \
+          &> "{log}"
+
+        tckinfo "{output.tractogram}" > "{output.tckinfo}" 2>> "{log}"
+        """
+
+
+SWEEP_SEEDFILTERED = (
+    rules.sweep_exclude_vp.output if VP_EXCLUSION else rules.sweep_filter_tractogram.output
+)
+
 # -----------------------------
 # Per-voxel node parcellation (seed voxels + offset target atlas)
 # -----------------------------
@@ -560,8 +610,8 @@ rule sweep_build_seed_nodes:
 
 rule sweep_voxelwise_connectivity:
     input:
-        tractogram=rules.sweep_filter_tractogram.output.tractogram,
-        sift2_weights=rules.sweep_filter_tractogram.output.sift2_weights,
+        tractogram=SWEEP_SEEDFILTERED.tractogram,
+        sift2_weights=SWEEP_SEEDFILTERED.sift2_weights,
         nodes=rules.sweep_build_seed_nodes.output.nodes,
         seed_voxel_index=rules.sweep_build_seed_nodes.output.seed_voxel_index,
         # Main-pipeline SIFT2 mu: the sweep filters the SAME final tractogram +
@@ -650,8 +700,8 @@ rule sweep_connectivity_variant:
     wildcard_constraints:
         meas=CONN_VARIANT_MEAS_CONSTRAINT,
     input:
-        tractogram=rules.sweep_filter_tractogram.output.tractogram,
-        sift2_weights=rules.sweep_filter_tractogram.output.sift2_weights,
+        tractogram=SWEEP_SEEDFILTERED.tractogram,
+        sift2_weights=SWEEP_SEEDFILTERED.sift2_weights,
         nodes=rules.sweep_build_seed_nodes.output.nodes,
         seed_voxel_index=rules.sweep_build_seed_nodes.output.seed_voxel_index,
         # Same global main-pipeline SIFT2 mu the baseline sweep matrix uses.
@@ -731,8 +781,8 @@ rule sweep_connectivity_variant:
 
 rule sweep_qc_tractogram_filtered:
     input:
-        tck=rules.sweep_filter_tractogram.output.tractogram,
-        weights=rules.sweep_filter_tractogram.output.sift2_weights,
+        tck=SWEEP_SEEDFILTERED.tractogram,
+        weights=SWEEP_SEEDFILTERED.sift2_weights,
         template=bids(root=root, datatype="dwi", suffix="mask.mif", **subj_wildcards),
     output:
         tdi=_MS_QC_TRACT + "/sub-{subject}_hemi-{hemi}_label-{seed}_thr-{thr_tag}_desc-seedfiltered_tdi.mif",
