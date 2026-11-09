@@ -13,7 +13,7 @@ SUBJECTS = sorted(set(inputs.input_zip_lists["T1w"]["subject"]))
 BUILD_NODES_SCRIPT = os.path.join(workflow.basedir, "scripts", "build_voxel_nodes.py")
 SLICE_BLOCK_SCRIPT = os.path.join(workflow.basedir, "scripts", "slice_connectome_block.py")
 
-SWEEP_SEEDS = ["vtasnc", "snc", "vtapbp", "vtasncpbp"]
+SWEEP_SEEDS = config.get("mask_sweep", {}).get("seeds", ["vtasnc", "snc", "vtapbp", "vtasncpbp"])
 HEMIS = ["L", "R"]
 TARGETS = ["Yeo7TianS3", "Yeo17TianS3", "Schaefer100TianS3", "SynthSegTianS3"]
 

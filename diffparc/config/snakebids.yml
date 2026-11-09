@@ -873,12 +873,15 @@ connectivity_variants:
   volume_length_bias_corrected_mu_scaled: true
 
 # ---- Experiment: seed-mask sweep (rules/mask_sweep.smk) -----------------------
+# Extra seed masks, thresholded at 0.2 only (no dilation), filtered from the same tractogram.
 mask_sweep:
   enabled: true
+  seeds:
+    - snc          # SNc
+    - vtapbp       # VTA + PBP
+    - vtasncpbp    # SNc + VTA + PBP
   thresholds:
-    - 0.1
     - 0.2
-    - 0.30
   mask_sources:
     - native
 #    - brainsteminjected

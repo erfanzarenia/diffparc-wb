@@ -37,7 +37,7 @@ parcels of a target atlas.
 | Field | Meaning |
 |---|---|
 | `template_probseg` | Template-space probability map for the seed (hemisphere-split). |
-| `probseg_threshold` | Threshold used to binarise the seed mask. |
+| `probseg_threshold` | Threshold used to binarise the seed mask (then dilated by one voxel, `-dilate 1 1x1x1vox`). |
 | `use_synthseg` | If `True`, derive the seed from SynthSeg + shape injection instead of the template prior. |
 | `targets` | Which target atlas(es) to connect this seed to. |
 
@@ -126,7 +126,8 @@ Two additive parameter sweeps, each fully config-gated; see the
 | Key | Purpose |
 |---|---|
 | `enabled` | Turn the seed-mask sweep on/off. |
-| `thresholds` | Probseg thresholds to sweep (e.g. `0.1, 0.2, 0.3`). |
+| `seeds` | Seeds to sweep (default `snc`, `vtapbp`, `vtasncpbp`; `vtasnc` also available). |
+| `thresholds` | Probseg thresholds to sweep (default `0.2` only). |
 | `mask_sources` | Seed-mask sources to compare (e.g. `native`, `brainsteminjected`). |
 
 **`enrichment_sweep`** (ROI-enrichment strength sweep):

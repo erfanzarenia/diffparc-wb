@@ -83,7 +83,7 @@ seed→target connectivity across a grid of probability **thresholds** and **mas
 native template-to-subject probseg vs a brainstem-injected prior), so the variants can be compared
 side by side.
 
-- **Config:** `mask_sweep` (`enabled`, `thresholds`, `mask_sources`).
+- **Config:** `mask_sweep` (`enabled`, `seeds`, `thresholds`, `mask_sources`).
 - **Outputs:** `sub-*/connectivity/mask_sweep/…` (matrices) plus per-threshold QC under `qc/mask_sweep/`.
 - **Rules:** [`rules/mask_sweep.smk`](diffparc/workflow/rules/mask_sweep.smk).
 
