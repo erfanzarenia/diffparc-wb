@@ -1,8 +1,7 @@
 # Target atlas spaces and the one-step NLin6 → 2009c correction
 
 This directory is named after the registration template (`MNI152NLin2009cAsym`), but **not every
-atlas in it is in that space**. Sensitivity analysis
-`/imaging/ezarenia/analyses/act_atlas_sensitivity_2026-11-03/REPORT.md`, Section 4, verified this.
+atlas in it is in that space**.
 
 ## Which files are in which space
 
@@ -39,26 +38,19 @@ antsApplyTransforms -n NearestNeighbor -i <NLin6 atlas> -r <subject node grid> \
 
 The atlas is resampled once, by nearest neighbour, through the concatenated transform. **Do not**
 pre-warp an atlas into a 2009c file and then resample it again: that two-step route roughly doubles
-the pallidal change (+4.17 pp against +2.16 pp) and inflates pallidal volume (report, Table 8).
+the pallidal change (+4.17 pp against +2.16 pp) and inflates pallidal volume.
 
 The transform is TemplateFlow's `tpl-MNI152NLin2009cAsym_from-MNI152NLin6Asym_mode-image_xfm.h5`
 (~200 MB, md5 `1f9b29f2d5cb898cc97243fe92ee9304`). It is git-ignored. Put it at
 `xfm/tpl-MNI152NLin2009cAsym_from-MNI152NLin6Asym_mode-image_xfm.h5` in this directory, or point
-`template_space_xfms.MNI152NLin6Asym` at an absolute path. Two ways to get it:
-
-```bash
-cp /imaging/ezarenia/analyses/act_atlas_sensitivity_2026-11-03/atlas/downloads/templateflow/tpl-MNI152NLin2009cAsym_from-MNI152NLin6Asym_mode-image_xfm.h5 diffparc/resources/tpl-MNI152NLin2009cAsym/xfm/
-```
+`template_space_xfms.MNI152NLin6Asym` at an absolute path. Fetch it with TemplateFlow (prints the
+downloaded path):
 
 ```bash
 python -c "from templateflow import api; print(api.get('MNI152NLin2009cAsym', **{'from': 'MNI152NLin6Asym'}, suffix='xfm', extension='.h5'))"
 ```
 
 If a target names a `template_space` with no transform configured, the workflow fails at parse time.
-
-Verified on sub-1782 (2026-11-06): the `Yeo7TianS3` dseg from this rule matches
-`work/sub-1782/prep/dseg_corrected_onestep.nii.gz` from the sensitivity analysis on every voxel
-(0 of 4,651,920 differ). The Tian parts of `Yeo17TianS3` and `SynthSegTianS3` match it exactly too.
 
 ## Re-deriving existing outputs after this change
 
@@ -86,6 +78,3 @@ Practical notes:
   `tckgen`/`tcksift2`/`run_sift2` job appears.
 - Corrected outputs keep the same filenames as the baseline ones (`desc-Yeo7TianS3`). Write them to
   a new output root, or move the baseline files aside first, so the two cannot be mixed up.
-- Existing SNIT derivatives use an older layout (`tracts/`, `Yeo7TianS3` names; see the run configs in
-  `batch-*/config/`). Re-deriving those needs either the matching pipeline layout or a targeted
-  script that applies the steps above to the existing tractograms and weights.
