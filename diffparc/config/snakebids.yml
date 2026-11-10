@@ -863,7 +863,7 @@ resources:
   wb_tckgen_chunk:
     threads: 16
     mem_mb: 4000
-    time_min: 180
+    time_min: 360
   roi_tckgen:
     threads: 8
     mem_mb: 2000
