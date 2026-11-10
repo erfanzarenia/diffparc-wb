@@ -96,6 +96,7 @@ cortex-only `Yeo7` / `Yeo17` and several `harvardoxford*` variants.
 | Key | Purpose |
 |---|---|
 | `fod_algorithm` | `msmt_csd` (default) or single-shell `csd`. |
+| `group_response` | `enabled` (default `False`), optional `wm`, `gm`, `csf`. If enabled, every subject's msmt_csd uses one set of group-average responses instead of its own (mtnormalise still follows). The first run with it on averages the dhollander responses of all subjects in that run (`responsemean`) into `group/dwi/group_desc-{wm,gm,csf}_alg-msmt_response.txt` before any FOD fit (on a cluster, that run submits each subject as two jobs, before and after the group step); later runs, batches and added subjects reuse these files unchanged (delete them to recompute). So that first run must include every subject; to run batches, start once with all subjects and `--until group_response_mean`. Absolute `wm`/`gm`/`csf` paths use those files instead. |
 | `mrtrix` | iFOD2 parameters: `step`, `angle`, `minlength`, `maxlength`, `cutoff`, and `target_search_radius` (mm) for endpoint→parcel assignment. |
 | `wb_chunk_count`, `wb_chunk_streamlines` | Whole-brain tractography is generated in this many chunks (distinct RNG seeds) of this many streamlines each, then merged. |
 | `mrtrix_rng_seed` | Base RNG seed for reproducibility. |

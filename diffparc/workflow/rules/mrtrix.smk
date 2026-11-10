@@ -226,14 +226,74 @@ rule dwi2response_msmt:
         "dwi2response dhollander {input.dwi} {output.wm_rf} {output.gm_rf} {output.csf_rf}  -nthreads {threads} -mask {input.mask}"
 
 
+# Group-average responses (config group_response). Off: each subject's msmt_csd uses its own
+# dhollander responses. On: every subject's msmt_csd uses one set of group-average responses.
+# Without explicit paths these are group/dwi/group_desc-{wm,gm,csf}_alg-msmt_response.txt in the
+# output directory: if they do not exist yet, group_response_mean makes them in this run from all
+# of the run's subjects (responsemean); once they exist they are reused unchanged, so later runs,
+# batches and added subjects never recompute them. Explicit wm/gm/csf paths override this.
+# While they are being made, the FOD fit and later rules run as a second per-subject cluster job
+# (group "subj_fod", set at the end of the Snakefile).
+_GRP = config.get("group_response", {})
+GROUP_RF = _GRP.get("enabled", False)
+GROUP_RF_FILES = {
+    t: _os.path.join(root, "group", "dwi", f"group_desc-{t}_alg-msmt_response.txt")
+    for t in ("wm", "gm", "csf")
+}
+_make_group_rf = False
+
+if GROUP_RF:
+    assert config["fod_algorithm"] == "msmt_csd", "group_response needs fod_algorithm: msmt_csd"
+    if any(_GRP.get(t) for t in GROUP_RF_FILES):
+        for _t in GROUP_RF_FILES:
+            _f = _GRP.get(_t) or ""
+            assert _os.path.isabs(_f) and _os.path.isfile(_f), (
+                f"group_response.{_t} must be an absolute path to an existing response file, got {_f!r}"
+            )
+            GROUP_RF_FILES[_t] = _f
+    else:
+        _make_group_rf = not all(_os.path.isfile(f) for f in GROUP_RF_FILES.values())
+
+if _make_group_rf:
+
+    localrules:
+        group_response_mean,
+
+    rule group_response_mean:
+        input:
+            **{
+                t: expand(rules.dwi2response_msmt.output[f"{t}_rf"], zip, **subj_zip_list)
+                for t in GROUP_RF_FILES
+            },
+        output:
+            **GROUP_RF_FILES,
+        params:
+            n=len(subj_zip_list["subject"]),
+        log:
+            "logs/group/group_response_mean.log",
+        container:
+            config["singularity"]["diffparc"]
+        shell:
+            "(echo subjects: {params.n}; "
+            "responsemean {input.wm} {output.wm} && "
+            "responsemean {input.gm} {output.gm} && "
+            "responsemean {input.csf} {output.csf}) &> {log}"
+
+
+def get_response(tissue):
+    if GROUP_RF:
+        return GROUP_RF_FILES[tissue]
+    return rules.dwi2response_msmt.output[f"{tissue}_rf"]
+
+
 rule dwi2fod_msmt:
     # Jeurissen, B; Tournier, J-D; Dhollander, T; Connelly, A & Sijbers, J. Multi-tissue constrained spherical deconvolution for improved analysis of multi-shell diffusion MRI data. NeuroImage, 2014, 103, 411-426
     input:
         dwi=get_dwi_for_fod,
         mask=get_mask_for_fod,
-        wm_rf=rules.dwi2response_msmt.output.wm_rf,
-        gm_rf=rules.dwi2response_msmt.output.gm_rf,
-        csf_rf=rules.dwi2response_msmt.output.csf_rf,
+        wm_rf=get_response("wm"),
+        gm_rf=get_response("gm"),
+        csf_rf=get_response("csf"),
     output:
         wm_fod=bids(
             root=root,

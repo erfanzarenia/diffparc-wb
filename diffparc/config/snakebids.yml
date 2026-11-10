@@ -822,6 +822,17 @@ targets:
 
 # ---- Tractography ------------------------------------------------------------
 fod_algorithm: msmt_csd
+# Group-average msmt_csd responses (mrtrix.smk: group_response_mean, dwi2fod_msmt). False: each
+# subject's own responses. True: the first run averages the responses of all its subjects into
+# group/dwi/group_desc-{wm,gm,csf}_alg-msmt_response.txt (output dir) before any FOD fit; later
+# runs/batches reuse those files unchanged. So the first run with this on must include every
+# subject (or start with `--until group_response_mean` over all subjects, then run batches).
+# mtnormalise still runs after the fit. Optional wm/gm/csf: absolute paths to use instead.
+group_response:
+  enabled: False
+  wm: ''
+  gm: ''
+  csf: ''
 dwi_upsample: false    # resample already lands on 1.25mm; no second regrid
 dwi_upsample_vox: 1.25
 mrtrix:

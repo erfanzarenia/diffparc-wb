@@ -539,3 +539,19 @@ if not config["anat_only"]:
     include: "rules/microstructure_connectomes.smk"
     include: "rules/mask_sweep.smk"
     include: "rules/enrichment_sweep.smk"
+
+    # group_response (rules/mrtrix.smk): while the group-average responses are still to be made,
+    # the FOD fit and everything after it form a second per-subject cluster job ("subj_fod"), so
+    # no group: "subj" job spans the cross-subject group_response_mean (a cyclic group job, which
+    # Snakemake silently never schedules). None of these rules feeds dwi2response.
+    if _make_group_rf:
+        _fod_rule_files = {
+            "mrtrix_wb.smk", "mrtrix_roi_enrichment.smk", "sift2.smk", "connectivity.smk",
+            "microstructure_connectomes.smk", "mask_sweep.smk", "enrichment_sweep.smk",
+        }
+        for _r in workflow.rules:
+            if _r.group == "subj" and (
+                _os.path.basename(_r.snakefile) in _fod_rule_files
+                or _r.name in ("dwi2fod_msmt", "mtnormalise")
+            ):
+                _r.group = "subj_fod"

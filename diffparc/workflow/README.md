@@ -19,7 +19,7 @@ unless `--no_vol` / `anat_only` is set.
 | Motion correction | `motioncorr.smk` | Volume-wise rigid motion correction (used when eddy is off). |
 | Brain masking | `masking_bet_from-b0.smk`, `masking_b0_to_template.smk` | DWI brain mask via BET-on-b0 or registration to the template. |
 | DWI → T1w | `reg_dwi_to_t1.smk` | Import preprocessed DWI, or rigidly register + resample the native DWI onto the T1w grid. |
-| MRtrix modelling | `mrtrix.smk` | DWI→MIF, MSMT-CSD response/FOD (+ mtnormalise), CSD fallback, tensor → FA/MD/RD. |
+| MRtrix modelling | `mrtrix.smk` | DWI→MIF, MSMT-CSD response/FOD (+ mtnormalise; optionally with group-average responses, `group_response`), CSD fallback, tensor → FA/MD/RD. |
 | ACT priors | `wb_prep.smk` | 5TT image (optionally with the pallidum as WM, `act.gp_as_wm`) and seed-mask preparation for anatomically-constrained tracking. |
 | Whole-brain tractography | `mrtrix_wb.smk` | Chunked, ACT-constrained iFOD2 whole-brain tracking, merged. |
 | ROI enrichment | `mrtrix_roi_enrichment.smk` | ROI-seeded enrichment tracking; merged with the whole-brain tractogram into the final tractogram. |
@@ -49,7 +49,9 @@ Additive and config-gated; they reuse the core products and do not change core o
 - **Containers** — every rule that calls a neuroimaging tool declares the `singularity` container;
   run with `--use-singularity`.
 - **Grouping** — most rules use `group: "subj"` so a subject's work can be bundled into one
-  cluster job (see `--group-components`).
+  cluster job (see `--group-components`). While `group_response` is making the group-average
+  responses, the FOD fit and later rules are regrouped as `subj_fod` (end of the Snakefile), so
+  each subject runs as two jobs around the cross-subject step.
 - **Resources** — tractography-heavy rules read `threads`/`mem_mb`/`time` from the config
   `resources` block via a small `res()` helper.
 - **Scripts** — non-trivial logic lives in [`scripts/`](scripts/) (voxel-node building,
