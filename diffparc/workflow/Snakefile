@@ -501,14 +501,27 @@ def get_microstructure_connectome_outputs():
         subject=subjects, targets=targets, metric=metrics,
     )
 
-rule all:
-    input:
+# group_response.enabled (nested --config values arrive as strings, e.g. "False")
+GROUP_RF_ON = str(config.get("group_response", {}).get("enabled", False)).lower() in ("true", "1", "yes")
+
+
+def get_all_targets():
+    # group_response phase 1 (rules/mrtrix.smk): only the group-average responses
+    if GROUP_RF_ON and config.get("phase") == 1:
+        return lambda wc: list(GROUP_RF_FILES.values())
+    return [
         get_subj_global_conn_sift2(),
         get_connectivity_variant_outputs(),
         get_mask_sweep_outputs(),
         get_enrichment_sweep_outputs(),
         get_tractography_qc_outputs(),
-        get_microstructure_connectome_outputs()
+        get_microstructure_connectome_outputs(),
+    ]
+
+
+rule all:
+    input:
+        get_all_targets(),
     default_target: True
 
 
@@ -539,19 +552,3 @@ if not config["anat_only"]:
     include: "rules/microstructure_connectomes.smk"
     include: "rules/mask_sweep.smk"
     include: "rules/enrichment_sweep.smk"
-
-    # group_response (rules/mrtrix.smk): while the group-average responses are still to be made,
-    # the FOD fit and everything after it form a second per-subject cluster job ("subj_fod"), so
-    # no group: "subj" job spans the cross-subject group_response_mean (a cyclic group job, which
-    # Snakemake silently never schedules). None of these rules feeds dwi2response.
-    if _make_group_rf:
-        _fod_rule_files = {
-            "mrtrix_wb.smk", "mrtrix_roi_enrichment.smk", "sift2.smk", "connectivity.smk",
-            "microstructure_connectomes.smk", "mask_sweep.smk", "enrichment_sweep.smk",
-        }
-        for _r in workflow.rules:
-            if _r.group == "subj" and (
-                _os.path.basename(_r.snakefile) in _fod_rule_files
-                or _r.name in ("dwi2fod_msmt", "mtnormalise")
-            ):
-                _r.group = "subj_fod"

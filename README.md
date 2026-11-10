@@ -2,10 +2,12 @@
 
 **Diffusion-based structural connectivity of subcortical nuclei.**
 
-> **This is the `config-sweep` branch, which is a methods / experiment branch.** On top of the core
-> `diffparc-wb` pipeline it adds two opt-in parameter sweeps (a **seed-mask sweep** and an
-> **ROI-enrichment sweep**), used to validate how the seed definition and enrichment strength affect
-> the results (see [Experiments](#experiments)). For the core pipeline alone, use the `main` branch.
+> **This is the `group-response` branch.** It is the `config-sweep` methods / experiment branch
+> (two opt-in parameter sweeps, a **seed-mask sweep** and an **ROI-enrichment sweep**; see
+> [Experiments](#experiments)) with one difference: FODs are fitted with **group-average response
+> functions** by default, so every run takes a **phase** (`--config phase=1`, then `phase=2`; see
+> [Group-average response functions](#group-average-response-functions-two-phases)). All other
+> options behave as on `config-sweep`. For the core pipeline alone, use the `main` branch.
 
 `diffparc-wb` is a [Snakebids](https://github.com/khanlab/snakebids) BIDS app that builds
 subject-specific **structural connectivity fingerprints** for deep-brain seed regions,
@@ -28,6 +30,7 @@ and tractography QC.
 
 - [Overview](#overview)
 - [Experiments](#experiments)
+- [Group-average response functions (two phases)](#group-average-response-functions-two-phases)
 - [Requirements](#requirements)
 - [Installation](#installation)
 - [Inputs](#inputs)
@@ -50,7 +53,8 @@ Given a BIDS dataset with a T1w image and (preprocessed) diffusion data, `diffpa
    atlas (e.g. Yeo-7 cortical + Tian 7T Scale III subcortical) into
    subject space. Atlases in MNI152NLin6Asym are mapped through NLin6→2009c→subject in a single
    resampling (see [`ATLAS_SPACES.md`](diffparc/resources/tpl-MNI152NLin2009cAsym/ATLAS_SPACES.md)).
-3. Fits MSMT-CSD fibre orientation distributions and a diffusion tensor (FA/MD/RD).
+3. Fits MSMT-CSD fibre orientation distributions, with group-average response functions on this
+   branch (see [below](#group-average-response-functions-two-phases)), and a diffusion tensor (FA/MD/RD).
 4. Runs **whole-brain, ACT-constrained tractography**, enriched with **ROI-targeted**
    tracking seeded in the deep-brain ROI.
 5. Applies **SIFT2** to weight streamlines by their fit to the diffusion signal.
@@ -100,6 +104,56 @@ baseline, and compares the resulting fingerprints. SIFT2 is either **re-fit** pe
 - **Rules:** [`rules/enrichment_sweep.smk`](diffparc/workflow/rules/enrichment_sweep.smk).
 
 Both sweeps are mapped out rule-by-rule in the [workflow guide](diffparc/workflow/README.md).
+
+## Group-average response functions (two phases)
+
+**Why.** MSMT-CSD needs a response function per tissue (WM, GM, CSF). Estimating it per subject
+puts a subject-specific global scale on the FODs, and through SIFT2 on the µ-scaled connectivity
+(about 10% between subjects in this cohort). Fitting every subject with the same group-average
+responses removes that scale difference; `mtnormalise` still runs after the fit, as before.
+
+**How.** The average needs every subject's responses before any subject's FODs can be fitted, so
+the work is split into two phases, chosen on the command line with `--config phase=1` or
+`--config phase=2`. No paths are needed; the group files live in the output directory.
+
+| | Phase 1 | Phase 2 |
+|---|---|---|
+| Run it | once, over **all** subjects | as often as needed, all subjects or batches |
+| Runs | DWI import / preprocessing and per-subject response estimation (`dwi2response dhollander`), then the group average (`responsemean`) | everything else: FOD fit with the group responses, `mtnormalise`, tractography, SIFT2, connectivity, sweeps, QC |
+| Writes | `group/dwi/group_desc-{wm,gm,csf}_alg-msmt_response.txt` | the usual per-subject outputs |
+| Cost | minutes per subject; no tractography | the full pipeline |
+
+```bash
+# Phase 1: every subject in one run (do not use --participant_label here)
+diffparc-wb /data/bids /data/derivatives/diffparc-wb participant \
+    --in_snakedwi_dir /data/derivatives/snakedwi --use-singularity --cores all \
+    --config phase=1
+
+# Phase 2: all subjects, or one batch at a time
+diffparc-wb /data/bids /data/derivatives/diffparc-wb participant \
+    --in_snakedwi_dir /data/derivatives/snakedwi --use-singularity --cores all \
+    --participant_label 001 002 003 --config phase=2
+```
+
+Good to know:
+
+- **Phase 1 averages over the subjects in that run**, so run it over the whole cohort. Its log,
+  `logs/group/group_response_mean.log`, records how many subjects went in, and the header of each
+  group file lists every input.
+- **The group files are never recomputed.** Re-running phase 1 does nothing once they exist; phase
+  2 only reads them, so batches and subjects added later all use identical responses. To
+  recompute (for example after adding many subjects), delete `group/dwi/` and run phase 1 again.
+- **Phase 2 checks for the files** and stops with an error if phase 1 has not been run; a run
+  without a phase stops and asks for one.
+- **On a cluster** (`--slurm` or a profile) both phases are ordinary runs; the group average is a
+  small local step at the end of phase 1.
+- **Other overrides go in the same `--config`**, e.g. `--config phase=2 'act={gp_as_wm: True}'`;
+  a second `--config` flag replaces the first.
+- **Turning it off:** `--config 'group_response={enabled: False}'` (or `enabled: False` in the
+  config) fits each subject with its own responses, and no phase is needed.
+- **Responses from elsewhere:** absolute `group_response.wm`/`gm`/`csf` paths use those files
+  instead and need no phase.
+- All subjects need the same b-value shells; `responsemean` stops with an error otherwise.
 
 ## Requirements
 
@@ -168,10 +222,14 @@ The typical workflow is to run `snakedwi` first, then point `diffparc-wb` at its
 diffparc-wb <bids_dir> <output_dir> participant [options]
 ```
 
+On this branch every run also needs `--config phase=1` or `--config phase=2` (see
+[Group-average response functions](#group-average-response-functions-two-phases)); the examples
+below show phase 2, after phase 1 has been run once.
+
 **Dry run** — print what would execute without running it:
 
 ```bash
-diffparc-wb /data/bids /data/derivatives/diffparc-wb participant -np
+diffparc-wb /data/bids /data/derivatives/diffparc-wb participant -np --config phase=2
 ```
 
 **Run**, importing preprocessed DWI from snakedwi, using containers and all local cores:
@@ -179,20 +237,20 @@ diffparc-wb /data/bids /data/derivatives/diffparc-wb participant -np
 ```bash
 diffparc-wb /data/bids /data/derivatives/diffparc-wb participant \
     --in_snakedwi_dir /data/derivatives/snakedwi \
-    --use-singularity --cores all
+    --use-singularity --cores all --config phase=2
 ```
 
 **Selected subjects only:**
 
 ```bash
 diffparc-wb /data/bids /data/derivatives/diffparc-wb participant \
-    --participant_label 001 002 --use-singularity --cores 8
+    --participant_label 001 002 --use-singularity --cores 8 --config phase=2
 ```
 
 **Generate an HTML report** after a run:
 
 ```bash
-diffparc-wb /data/bids /data/derivatives/diffparc-wb participant --report
+diffparc-wb /data/bids /data/derivatives/diffparc-wb participant --report --config phase=2
 ```
 
 App-specific options (in addition to all standard Snakemake flags):
@@ -222,6 +280,9 @@ commonly adjusted settings:
   See the [configuration guide](diffparc/config/README.md#seeds-and-targets).
 - **Tractography** (`mrtrix`, `wb_chunk_*`, `roi_enrichment`): step/angle/length, streamline
   counts (per the whole brain), ROI enrichment streamline counts (per voxel).
+- **Response functions** (`group_response`, `phase`): group-average (default on this branch, two
+  phases) or per-subject responses for the FOD fit (see
+  [above](#group-average-response-functions-two-phases)).
 - **Connectivity variants** (`connectivity_variants`): which corrected matrices to emit.
 - **Microstructure / QC** (`microstructure_connectomes`, `tractography_qc`).
 - **Experiments** (`mask_sweep`, `enrichment_sweep`): the parameter sweeps unique to this branch
@@ -233,12 +294,14 @@ and target menus and every knob.
 
 ## Outputs
 
-Results are written under `<output_dir>` in BIDS-derivatives layout, per subject:
+Results are written under `<output_dir>` in BIDS-derivatives layout, per subject, plus the
+group-average response functions from phase 1:
 
 ```
+group/dwi/         group_desc-{wm,gm,csf}_alg-msmt_response.txt (phase 1; used by every FOD fit)
 sub-<id>/
 ├── anat/          preprocessed T1w, brain mask, SynthSeg, subject-space seeds & target atlases, 5TT
-├── dwi/           MRtrix FODs, tensor and FA/MD/RD maps, brain mask, b0
+├── dwi/           per-subject responses, MRtrix FODs, tensor and FA/MD/RD maps, brain mask, b0
 ├── warps/         subject↔template affine and (inverse) warps
 ├── tracts/        tractograms (.tck) plus their SIFT2 weights
 ├── connectivity/  the primary deliverable: seed→target connectivity matrices (+ microstructure

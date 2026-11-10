@@ -822,17 +822,19 @@ targets:
 
 # ---- Tractography ------------------------------------------------------------
 fod_algorithm: msmt_csd
-# Group-average msmt_csd responses (mrtrix.smk: group_response_mean, dwi2fod_msmt). False: each
-# subject's own responses. True: the first run averages the responses of all its subjects into
-# group/dwi/group_desc-{wm,gm,csf}_alg-msmt_response.txt (output dir) before any FOD fit; later
-# runs/batches reuse those files unchanged. So the first run with this on must include every
-# subject (or start with `--until group_response_mean` over all subjects, then run batches).
-# mtnormalise still runs after the fit. Optional wm/gm/csf: absolute paths to use instead.
+# Group-average msmt_csd responses (mrtrix.smk: group_response_mean, dwi2fod_msmt). This branch:
+# on by default and run in two phases, passed on the command line (`--config phase=1`, `phase=2`):
+#   phase 1: once, over ALL subjects: preprocessing + dwi2response, then the group average into
+#            group/dwi/group_desc-{wm,gm,csf}_alg-msmt_response.txt (output dir). Nothing else runs.
+#   phase 2: everything else, for any subjects or batches, with those files (never recomputed).
+# mtnormalise still runs after the fit. enabled False: each subject's own responses, no phases.
+# Optional wm/gm/csf: absolute paths to existing group responses (then no phase is needed).
 group_response:
-  enabled: False
+  enabled: True
   wm: ''
   gm: ''
   csf: ''
+phase:    # 1 or 2 when group_response is on; pass with --config phase=N
 dwi_upsample: false    # resample already lands on 1.25mm; no second regrid
 dwi_upsample_vox: 1.25
 mrtrix:

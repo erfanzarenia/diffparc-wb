@@ -226,16 +226,15 @@ rule dwi2response_msmt:
         "dwi2response dhollander {input.dwi} {output.wm_rf} {output.gm_rf} {output.csf_rf}  -nthreads {threads} -mask {input.mask}"
 
 
-# Group-average responses (config group_response). Off: each subject's msmt_csd uses its own
-# dhollander responses. On: every subject's msmt_csd uses one set of group-average responses.
-# Without explicit paths these are group/dwi/group_desc-{wm,gm,csf}_alg-msmt_response.txt in the
-# output directory: if they do not exist yet, group_response_mean makes them in this run from all
-# of the run's subjects (responsemean); once they exist they are reused unchanged, so later runs,
-# batches and added subjects never recompute them. Explicit wm/gm/csf paths override this.
-# While they are being made, the FOD fit and later rules run as a second per-subject cluster job
-# (group "subj_fod", set at the end of the Snakefile).
+# Group-average responses (config group_response; this branch: on by default, run in two phases).
+# Off: each subject's msmt_csd uses its own dhollander responses. On: every subject's msmt_csd uses
+# group/dwi/group_desc-{wm,gm,csf}_alg-msmt_response.txt in the output directory.
+#   phase=1: run once over ALL subjects; only preprocessing + dwi2response, then group_response_mean
+#            averages them (responsemean). Existing group files are kept (delete to recompute).
+#   phase=2: everything else, for any subjects/batches; needs the phase-1 files, never changes them.
+# Explicit absolute wm/gm/csf paths use those files instead and need no phase.
 _GRP = config.get("group_response", {})
-GROUP_RF = _GRP.get("enabled", False)
+GROUP_RF = GROUP_RF_ON  # Snakefile
 GROUP_RF_FILES = {
     t: _os.path.join(root, "group", "dwi", f"group_desc-{t}_alg-msmt_response.txt")
     for t in ("wm", "gm", "csf")
@@ -252,7 +251,14 @@ if GROUP_RF:
             )
             GROUP_RF_FILES[_t] = _f
     else:
-        _make_group_rf = not all(_os.path.isfile(f) for f in GROUP_RF_FILES.values())
+        _phase = config.get("phase")
+        assert _phase in (1, 2), (
+            "group_response is on: pass --config phase=1 (all subjects: group-average responses) "
+            "or phase=2 (everything else), or set group_response.enabled: False"
+        )
+        _missing = [f for f in GROUP_RF_FILES.values() if not _os.path.isfile(f)]
+        assert _phase == 1 or not _missing, f"phase=2 needs the phase-1 group responses: {_missing}"
+        _make_group_rf = _phase == 1 and bool(_missing)
 
 if _make_group_rf:
 
