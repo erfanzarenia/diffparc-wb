@@ -4,6 +4,18 @@ from snakebids import bids
 
 configfile: "config/snakebids.yml"
 
+# Nested --config values (e.g. 'act={gp_as_wm: False}') arrive as strings, and "False" is truthy:
+# turn "True"/"False" strings anywhere in the config into booleans.
+def _str_to_bool(d):
+    for k, v in d.items():
+        if isinstance(v, dict):
+            _str_to_bool(v)
+        elif isinstance(v, str) and v.lower() in ("true", "false"):
+            d[k] = v.lower() == "true"
+
+
+_str_to_bool(config)
+
 report: "../workflow/report/workflow.rst"
 
 # -----------------------------
