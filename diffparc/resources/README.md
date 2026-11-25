@@ -22,7 +22,9 @@ transforms (see [`workflow/rules/prop_seeds_targets.smk`](../workflow/rules/prop
 
 These atlases are redistributed from their original sources — CIT168 (subcortical/midbrain
 nuclei), Yeo (cortical networks), Tian (subcortical), Schaefer (cortical), and Harvard-Oxford —
-in the `MNI152NLin2009cAsym` space. Please cite the corresponding atlas publications when using
+in the `MNI152NLin2009cAsym` folder. Not all of them are in that space: the Yeo, Schaefer and Tian
+atlases are in `MNI152NLin6Asym` and the hybrid targets are mapped to subject space through 2009c in
+one step (see [`ATLAS_SPACES.md`](tpl-MNI152NLin2009cAsym/ATLAS_SPACES.md)). Please cite the corresponding atlas publications when using
 the results.
 
 > **Naming note.** The combined `*Tian*` files contain Tian **7T Scale III** (54 parcels, 27 per
