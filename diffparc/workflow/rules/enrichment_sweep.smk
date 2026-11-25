@@ -1283,7 +1283,7 @@ rule enrich_condition_row:
 
 
 # -----------------------------
-# (8) Per-subject summary (ENTRY target) — concatenate condition rows
+# (8) Per-subject summary (ENTRY target): concatenate condition rows
 # -----------------------------
 rule enrich_summary:
     input:

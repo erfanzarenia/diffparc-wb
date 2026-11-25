@@ -21,7 +21,7 @@ which align 1:1 with that level's combined tractogram. ``n_wb`` is recovered as
 ``len(weights_max) - n_total`` (n_total = ROI_max streamline count, read from the
 maximal-level subsample meta), so no separate streamline count has to be passed.
 
-No connectivity math, no SIFT2 re-fit, no tractogram modification — only a
+No connectivity math, no SIFT2 re-fit, no tractogram modification; only a
 reindexing of an existing weight vector.
 """
 

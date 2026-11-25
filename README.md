@@ -109,13 +109,13 @@ Both sweeps are mapped out rule-by-rule in the [workflow guide](diffparc/workflo
 - **Python** 3.8–3.10
 - **Snakemake** 7.x and **Snakebids** 0.7.x (installed with the app; see below)
 - **Singularity / Apptainer** to run the neuroimaging tools inside the pipeline container
-- The **pipeline container** — `diffparc/resources/apptainer/diffparc-deps_with_fsl.sif` — a
+- The **pipeline container**, `diffparc/resources/apptainer/diffparc-deps_with_fsl.sif`, a
   **required** ~12 GB image that provides every neuroimaging tool the rules call:
   FSL, MRtrix3, ANTs, Convert3D (`c3d`/`c4d`), `greedy`, NiftyReg (`reg_aladin`),
   and FreeSurfer's SynthSeg / SynthStrip. It is an FSL-enabled build of
   [`khanlab/diffparc-deps`](https://hub.docker.com/r/khanlab/diffparc-deps). Because of its size
   it is **not** committed to the repository (it is git-ignored), so a fresh clone does not include
-  it — see [Installation](#installation) for where to place it.
+  it; see [Installation](#installation) for where to place it.
 
 Whole-brain tractography is compute- and memory-intensive. A multi-core machine (or an HPC
 cluster) is recommended; per-rule resource requests are defined in the config under `resources`.
@@ -139,7 +139,7 @@ diffparc/resources/apptainer/diffparc-deps_with_fsl.sif
 ```
 
 The container location is read from `singularity.diffparc` in the config, or from the
-`DIFFPARC_CONTAINER` environment variable — which takes precedence and is the easiest way to point
+`DIFFPARC_CONTAINER` environment variable, which takes precedence and is the easiest way to point
 at your own copy without editing tracked config:
 
 ```bash
@@ -171,7 +171,7 @@ The typical workflow is to run `snakedwi` first, then point `diffparc-wb` at its
 diffparc-wb <bids_dir> <output_dir> participant [options]
 ```
 
-**Dry run** — print what would execute without running it:
+**Dry run**: print what would execute without running it:
 
 ```bash
 diffparc-wb /data/bids /data/derivatives/diffparc-wb participant -np
@@ -263,10 +263,10 @@ sub-<id>/
 
 The primary deliverables are the per-seed connectivity matrices in `connectivity/`:
 
-- `..._label-<seed>_desc-<targets>_connectivity_matrix.csv` — raw SIFT2-weighted
+- `..._label-<seed>_desc-<targets>_connectivity_matrix.csv`: raw SIFT2-weighted
   **seed-voxel × target-parcel** connectivity (plus `meas-muscaled` and, when enabled,
   volume/length bias-corrected variants).
-- `..._desc-<targets>_meas-{FA,MD,RD}_connectivity_matrix.csv` — microstructure-weighted
+- `..._desc-<targets>_meas-{FA,MD,RD}_connectivity_matrix.csv`: microstructure-weighted
   atlas connectomes (optional).
 
 ## Repository structure
@@ -306,5 +306,5 @@ for this work will be added here.
 
 ## License
 
-Released under the MIT License — see [LICENSE](LICENSE). The original diffparc-surf is likewise
+Released under the MIT License; see [LICENSE](LICENSE). The original diffparc-surf is likewise
 MIT licensed.

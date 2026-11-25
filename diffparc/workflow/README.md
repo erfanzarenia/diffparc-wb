@@ -40,23 +40,23 @@ Additive and config-gated; they reuse the core products and do not change core o
 
 - **Output paths** are built with Snakebids' `bids()` helper, so filenames follow BIDS entity
   conventions (`sub-…_hemi-…_label-…_desc-…_…`).
-- **Output layout** — per subject, files are grouped by kind: `anat/`, `dwi/`, `warps/` (inputs and
+- **Output layout**: per subject, files are grouped by kind: `anat/`, `dwi/`, `warps/` (inputs and
   intermediates); `tracts/` (tractograms plus their SIFT2 weights); `connectivity/` (the
-  seed→target and microstructure matrices — the deliverables); and `qc/` (the global SIFT2 µ), split into
+  seed→target and microstructure matrices, the deliverables); and `qc/` (the global SIFT2 µ), split into
   `qc/tractography/` (TDI, endpoints, DEC, lengths, tckinfo) and `qc/connectivity/` (assignments,
   seed-voxel index, per-matrix QC). The sweeps mirror this: their matrices go under
   `connectivity/{mask,enrichment}_sweep/`, with QC namespaced under `qc/{mask,enrichment}_sweep/`.
-- **Containers** — every rule that calls a neuroimaging tool declares the `singularity` container;
+- **Containers**: every rule that calls a neuroimaging tool declares the `singularity` container;
   run with `--use-singularity`.
-- **Grouping** — most rules use `group: "subj"` so a subject's work can be bundled into one
+- **Grouping**: most rules use `group: "subj"` so a subject's work can be bundled into one
   cluster job (see `--group-components`). While `group_response` is making the group-average
   responses, the FOD fit and later rules are regrouped as `subj_fod` (end of the Snakefile), so
   each subject runs as two jobs around the cross-subject step.
-- **Resources** — tractography-heavy rules read `threads`/`mem_mb`/`time` from the config
+- **Resources**: tractography-heavy rules read `threads`/`mem_mb`/`time` from the config
   `resources` block via a small `res()` helper.
-- **Scripts** — non-trivial logic lives in [`scripts/`](scripts/) (voxel-node building,
+- **Scripts**: non-trivial logic lives in [`scripts/`](scripts/) (voxel-node building,
   connectome slicing/labelling, tractography QC, hybrid-target merging, DWI preprocessing helpers).
-- **Targets are generic** — every atlas in a seed's `targets:` list flows through the same
+- **Targets are generic**: every atlas in a seed's `targets:` list flows through the same
   `transform`/hybrid → `build_seed_nodes` → `tck2connectome` path, so adding one reuses the shared
   tractography and SIFT2 (see the [config guide](../config/README.md#seeds-and-targets)).
 

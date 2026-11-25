@@ -12,7 +12,7 @@ Subsampling is *nested*: a single, level-INDEPENDENT random permutation of the
 streamline indices is drawn (seeded by ``seed`` only), and each level keeps the
 first ``n_keep`` of that fixed permutation. Because the permutation is the same
 for every level, the kept set at a lower level is a strict subset of every
-higher level (e.g. 1000 ⊂ 3000 ⊂ 5000 — each higher level is the lower one plus
+higher level (e.g. 1000 ⊂ 3000 ⊂ 5000; each higher level is the lower one plus
 extra streamlines). Indices are sorted before extraction so the output preserves
 the original streamline order.
 
@@ -20,7 +20,7 @@ The selected indices (and ``n_total``) are also written to an optional meta JSON
 so a companion step can propagate per-streamline SIFT2 weights from the maximal
 tractogram to this level without re-fitting SIFT2.
 
-This performs no connectivity math and does not touch SIFT2 — it only writes a
+This performs no connectivity math and does not touch SIFT2; it only writes a
 smaller tractogram (and, optionally, the selection metadata).
 """
 
