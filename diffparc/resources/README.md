@@ -8,7 +8,7 @@ Template and atlas files used by the pipeline. Paths here are referenced from
 
 | Path | Contents |
 |---|---|
-| `apptainer/diffparc-deps_with_fsl.sif` | **Primary pipeline container** (required, ~12 GB, git-ignored) — the FSL-enabled diffparc-deps image every rule runs inside. See [Installation](../../README.md#installation) for how to obtain and place it. |
+| `apptainer/diffparc-deps_with_fsl.sif` | **Primary pipeline container** (required, ~12 GB, git-ignored): the FSL-enabled diffparc-deps image every rule runs inside. See [Installation](../../README.md#installation) for how to obtain and place it. |
 | `tpl-MNI152NLin2009cAsym/` | Reference template: T1w, brain mask, GM/WM/CSF tissue priors, and a DWI-space b0. |
 | `tpl-MNI152NLin2009cAsym/CIT168_prob/` | **Seed** probability maps (VTA / SNc / PBP and their combinations), hemisphere-split. |
 | `tpl-MNI152NLin2009cAsym/{Yeo,Tian,Yeo_Tian,Schaefer,Schaefer_Tian,HarvardOxford}/` | **Target** atlases (cortical networks and subcortical parcellations) and their label lists. The combined `*_Tian*` atlases pair a cortical atlas with the **Tian S3** subcortex (54 parcels). |
@@ -20,9 +20,9 @@ transforms (see [`workflow/rules/prop_seeds_targets.smk`](../workflow/rules/prop
 
 ## Provenance
 
-These atlases are redistributed from their original sources — CIT168 (subcortical/midbrain
-nuclei), Yeo (cortical networks), Tian (subcortical), Schaefer (cortical), and Harvard-Oxford —
-in the `MNI152NLin2009cAsym` folder. Not all of them are in that space: the Yeo, Schaefer and Tian
+These atlases are redistributed from their original sources: CIT168 (subcortical/midbrain
+nuclei), Yeo (cortical networks), Tian (subcortical), Schaefer (cortical) and Harvard-Oxford.
+They sit in the `MNI152NLin2009cAsym` folder, but not all of them are in that space: the Yeo, Schaefer and Tian
 atlases are in `MNI152NLin6Asym` and the hybrid targets are mapped to subject space through 2009c in
 one step (see [`ATLAS_SPACES.md`](tpl-MNI152NLin2009cAsym/ATLAS_SPACES.md)). Please cite the corresponding atlas publications when using
 the results.

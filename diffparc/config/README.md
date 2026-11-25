@@ -9,7 +9,7 @@ likely to change; the file itself is organised into labelled sections and commen
 
 | Key | Purpose |
 |---|---|
-| `singularity.diffparc` | Absolute path to the **primary pipeline container** — `diffparc-deps_with_fsl.sif`, whose home is `resources/apptainer/`. Override per machine with `$DIFFPARC_CONTAINER` instead of editing this. |
+| `singularity.diffparc` | Absolute path to the **primary pipeline container**, `diffparc-deps_with_fsl.sif`, whose home is `resources/apptainer/`. Override per machine with `$DIFFPARC_CONTAINER` instead of editing this. |
 | `tmp_dir` | Scratch directory for temporary tractograms. Override with `$DIFFPARC_TMPDIR`. **Must be a shared filesystem** on a cluster (not node-local), because grouped jobs share these files. |
 
 ## DWI source & preprocessing
@@ -18,7 +18,7 @@ likely to change; the file itself is organised into labelled sections and commen
 |---|---|
 | `in_snakedwi_dir` / `in_prepdwi_dir` | Import already-preprocessed DWI (recommended). Set via the matching CLI flags. |
 | `dwi_biascorrect` | Native-space bias correction in the self-contained path. Keep `False` when snakedwi already did it. |
-| `masking_method` | `b0_BET` or `b0_SyN` — brain masking for the self-contained path. |
+| `masking_method` | `b0_BET` or `b0_SyN`: brain masking for the self-contained path. |
 | `resample_dwi` | Target grid for DWI in T1w space (default: single resample to 1.25 mm). Must match snakedwi. |
 
 ## Registration template
@@ -45,7 +45,7 @@ Bundled seeds (midbrain dopaminergic nuclei, from CIT168):
 
 | Seed | Region |
 |---|---|
-| `vtasncpbp` *(default)* | VTA + SNc + PBP — full dopaminergic midbrain |
+| `vtasncpbp` *(default)* | VTA + SNc + PBP (full dopaminergic midbrain) |
 | `vtasnc` | VTA + SNc |
 | `snc` | SNc only (nigrostriatal) |
 | `vtapbp` | VTA + PBP (mesolimbic) |
@@ -159,5 +159,5 @@ This branch also defines extra seeds (`snc`, `vtapbp`, …) beyond the core `vta
 The `resources` block sets per-rule `threads` / `mem_mb` / `time_min` for the tractography-heavy
 rules. Tune these to your hardware; on a cluster they feed directly into the scheduler's job
 requests. Each whole-brain tracking chunk (`wb_tckgen_chunk`) gets 360 min; the 2 × 50M-streamline
-pilot chunks took about 240 min. Only rules that scale with tractography parameters are listed — everything else uses
+pilot chunks took about 240 min. Only rules that scale with tractography parameters are listed; everything else uses
 sensible built-in defaults.
