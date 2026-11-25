@@ -65,6 +65,8 @@ parcels.
 - Anatomically-constrained (5TT/ACT) whole-brain tractography with reproducible, chunked seeding.
 - ROI enrichment to boost streamline counts from small deep-brain seeds.
 - SIFT2 weighting for quantitative connectivity.
+- Optional pallidum-as-white-matter ACT and post-SIFT2 exclusion of seed streamlines that enter the
+  ventral posterior (VP) thalamus.
 - Configurable connectivity variants (raw, SIFT2-µ scaled, volume- and length-bias corrected).
 - Optional FA/MD/RD-weighted microstructure connectomes.
 - Fully containerised tools and BIDS-app CLI; scales from a laptop to a SLURM cluster.
@@ -81,9 +83,10 @@ each is toggled entirely from the config. They exist to validate methodological 
 defined. For each midbrain seed (VTA / SNc / PBP and their combinations) it recomputes the
 seed→target connectivity across a grid of probability **thresholds** and **mask sources** (e.g. the
 native template-to-subject probseg vs a brainstem-injected prior), so the variants can be compared
-side by side.
+side by side. By default it runs SNc, VTA+PBP and SNc+VTA+PBP at threshold 0.2 on the native
+probseg, against `Yeo7TianS3` and `Schaefer100TianS3`.
 
-- **Config:** `mask_sweep` (`enabled`, `seeds`, `thresholds`, `mask_sources`).
+- **Config:** `mask_sweep` (`enabled`, `seeds`, `targets`, `thresholds`, `mask_sources`).
 - **Outputs:** `sub-*/connectivity/mask_sweep/…` (matrices) plus per-threshold QC under `qc/mask_sweep/`.
 - **Rules:** [`rules/mask_sweep.smk`](diffparc/workflow/rules/mask_sweep.smk).
 
@@ -222,6 +225,15 @@ commonly adjusted settings:
   See the [configuration guide](diffparc/config/README.md#seeds-and-targets).
 - **Tractography** (`mrtrix`, `wb_chunk_*`, `roi_enrichment`): step/angle/length, streamline
   counts (per the whole brain), ROI enrichment streamline counts (per voxel).
+- **ACT and VP exclusion** (`act.gp_as_wm`, `vp_exclusion`): optionally track and fit SIFT2 with the
+  FIRST pallidum as white matter, and drop seed streamlines that enter the VP thalamus after SIFT2
+  (kept streamlines keep their weights; the connectivity and mask-sweep matrices then come from the
+  VP-excluded tractogram, under the usual filenames). Both are off by default; switch them on in the
+  config or with `--config 'act={gp_as_wm: True}' 'vp_exclusion={enabled: True}'`.
+- **Response functions** (`group_response`): per-subject responses by default. With `enabled: True`,
+  every FOD fit uses group-average responses, made once per output directory by the first run (which
+  must include every subject) and reused by later runs and batches. See the
+  [configuration guide](diffparc/config/README.md#tractography).
 - **Connectivity variants** (`connectivity_variants`): which corrected matrices to emit.
 - **Microstructure / QC** (`microstructure_connectomes`, `tractography_qc`).
 - **Experiments** (`mask_sweep`, `enrichment_sweep`): the parameter sweeps unique to this branch
@@ -238,9 +250,10 @@ Results are written under `<output_dir>` in BIDS-derivatives layout, per subject
 ```
 sub-<id>/
 ├── anat/          preprocessed T1w, brain mask, SynthSeg, subject-space seeds & target atlases, 5TT
+│                  (+ desc-5ttgpwm with act.gp_as_wm, label-VP_desc-thalfill mask with vp_exclusion)
 ├── dwi/           MRtrix FODs, tensor and FA/MD/RD maps, brain mask, b0
 ├── warps/         subject↔template affine and (inverse) warps
-├── tracts/        tractograms (.tck) plus their SIFT2 weights
+├── tracts/        tractograms (.tck) plus their SIFT2 weights (+ desc-seedfilteredvpexcl with vp_exclusion)
 ├── connectivity/  the primary deliverable: seed→target connectivity matrices (+ microstructure
 │                  connectomes; sweep matrices under connectivity/{mask,enrichment}_sweep/)
 └── qc/            the global SIFT2 µ; qc/tractography/ (TDI, endpoints, DEC, length histograms, tckinfo),

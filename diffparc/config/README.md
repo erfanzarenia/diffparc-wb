@@ -56,8 +56,9 @@ become the columns of the connectivity matrix). A seed is parcellated against **
 expensive tracking and SIFT2 stages are shared, and each extra atlas adds only a cheap warp plus
 `tck2connectome`. Select all, or any subset, by editing that list.
 
-This branch (`feature/target-sweep`) ships four target atlases, each pairing a cortical
-parcellation with the Tian subcortex (**Tian 7T Scale III**: 54 parcels, 27 per hemisphere):
+The config ships four target atlases, each pairing a cortical parcellation with the Tian subcortex
+(**Tian 7T Scale III**: 54 parcels, 27 per hemisphere). The default seed (`vtasncpbp`) uses
+`Yeo7TianS3` and `Schaefer100TianS3`:
 
 | Target | Cortex | Cortex source | Matrix columns |
 |---|---|---|---|
@@ -118,7 +119,8 @@ are always produced):
 `vp_exclusion` (`enabled`, `atlas`): if enabled, seed streamlines with any point in the ventral
 posterior thalamus are dropped from the main and mask-sweep connectivity **after** SIFT2; kept
 streamlines keep their original weights (no refit). VP is Tian THA-VPm/VPl from `atlas`, filled out to
-the whole FIRST thalamus by nearest thalamic label so the unlabelled rim is covered. Default off.
+the whole FIRST thalamus by nearest thalamic label so the unlabelled rim is covered. The matrices keep
+their usual filenames; the excluded tractogram and weights are `desc-seedfilteredvpexcl`. Default off.
 
 `microstructure_connectomes` (+ `_targets`, `_metrics`) enables FA/MD/RD-weighted atlas
 connectomes. `tractography_qc` (+ `_nsubsample`, `_seed`) controls the visual QC outputs.
@@ -156,5 +158,6 @@ This branch also defines extra seeds (`snc`, `vtapbp`, …) beyond the core `vta
 
 The `resources` block sets per-rule `threads` / `mem_mb` / `time_min` for the tractography-heavy
 rules. Tune these to your hardware; on a cluster they feed directly into the scheduler's job
-requests. Only rules that scale with tractography parameters are listed — everything else uses
+requests. Each whole-brain tracking chunk (`wb_tckgen_chunk`) gets 360 min; the 2 × 50M-streamline
+pilot chunks took about 240 min. Only rules that scale with tractography parameters are listed — everything else uses
 sensible built-in defaults.
