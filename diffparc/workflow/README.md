@@ -24,7 +24,7 @@ unless `--no_vol` / `anat_only` is set.
 | Whole-brain tractography | `mrtrix_wb.smk` | Chunked, ACT-constrained iFOD2 whole-brain tracking, merged. |
 | ROI enrichment | `mrtrix_roi_enrichment.smk` | ROI-seeded enrichment tracking; merged with the whole-brain tractogram into the final tractogram. |
 | SIFT2 | `sift2.smk` | SIFT2 weighting of the final tractogram (+ global µ). |
-| Connectivity | `connectivity.smk` | Seed-filter streamlines, build per-voxel nodes, `tck2connectome` → seed→target matrices (+ variants) and tractography QC. |
+| Connectivity | `connectivity.smk` | Seed-filter streamlines (optionally dropping those that enter the VP thalamus after SIFT2, `vp_exclusion`), build per-voxel nodes, `tck2connectome` → seed→target matrices (+ variants) and tractography QC. |
 | Microstructure | `microstructure_connectomes.smk` | Optional FA/MD/RD-weighted atlas connectomes from the final tractogram. |
 
 ## Experiment modules (this branch)
@@ -33,7 +33,7 @@ Additive and config-gated; they reuse the core products and do not change core o
 
 | Module | What it does |
 |---|---|
-| `mask_sweep.smk` | Seed-mask sensitivity sweep: recompute seed→target connectivity across seed-mask thresholds and sources (see the [README](../../README.md#experiments)). |
+| `mask_sweep.smk` | Seed-mask sensitivity sweep: recompute seed→target connectivity across seeds, seed-mask thresholds and sources (default SNc, VTA+PBP and SNc+VTA+PBP at 0.2; VP exclusion applies here too; see the [README](../../README.md#experiments)). |
 | `enrichment_sweep.smk` | ROI-enrichment strength sweep: one maximal ROI tractogram, lower levels by nested subsampling, per-condition fingerprints; SIFT2 re-fit or propagated. |
 
 ## Conventions
